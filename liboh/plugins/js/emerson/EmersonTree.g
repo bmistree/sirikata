@@ -1205,11 +1205,11 @@ primaryExpression
             APP((const char*)$Identifier.text->chars);
 	  }
     | dollarExpression
-	| literal
-	| arrayLiteral
-	| objectLiteral
+    | literal
+    | arrayLiteral
+    | objectLiteral
     | patternLiteral
-	| ^(PAREN { APP("( "); } expression { APP(" )");})
+    | ^(PAREN { APP("( "); } expression { APP(" )");})
     | vectorLiteral
 	;
 
@@ -1322,8 +1322,56 @@ objectLiteral
 
 //patternLiteral definition
 patternLiteral
-: ^(PATTERN_LITERAL
-lkjs;
+    @init
+    {
+        int howManyArgs=0;
+        APP("new util.Pattern( ");
+    }
+    @after
+    {
+        
+        APP(" )");
+    }
+    : ^(PATTERN_LITERAL
+
+        name=expression
+        {
+            ++howManyArgs;
+        }
+        (
+            {
+                APP(", " );
+                ++howManyArgs;
+            }
+            val=expression
+            (
+                {
+                    APP(", " );
+                    ++howManyArgs;
+                }
+                proto=expression
+            )?
+        )?
+        {
+            for (int s=howManyArgs; s < 3; ++s)
+            {
+                APP(" , null");
+            }
+        }
+        
+       )
+     | ^(PATTERN_MIDDLE_MISSING_LITERAL
+         name=expression
+         {
+             APP(", null,");
+         }
+         proto=expression
+       )
+     ;        
+
+
+
+
 
 
 // patternLiteral definition.

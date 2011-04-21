@@ -118,6 +118,7 @@ tokens
     MESSAGE_RECV;
     PAREN;
     PATTERN_LITERAL;
+    PATTERN_MIDDLE_MISSING_LITERAL;
     NAME_VALUE_PROTO;
     NAME;
     VALUE;
@@ -606,16 +607,16 @@ unaryExpression
 	
 
 primaryExpression
-	: 'this'
+    : 'this'
     | vectorLiteral 
-	| Identifier
+    | Identifier
     | dollarExpression
-	| literal
-	| arrayLiteral
-	| objectLiteral
+    | literal
+    | arrayLiteral
+    | objectLiteral
     | patternLiteral
-	| '(' LTERM* expression LTERM* ')' -> ^( PAREN expression )
-	;
+    | '(' LTERM* expression LTERM* ')' -> ^( PAREN expression )
+    ;
 
 vectorLiteral
         : '<' LTERM* e1=assignmentExpression LTERM* ',' LTERM* e2=assignmentExpression LTERM* ',' LTERM* e3=assignmentExpression LTERM* '>' -> ^(VECTOR $e1 $e2 $e3)
@@ -646,14 +647,16 @@ objectLiteral
 	;
 
 // patternLiteral definition
-patternLiteral
-  : '{' LTERM* nameValueProto? LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto?)
-  | '{' LTERM*  p1=nameValueProto (',' LTERM* p2=nameValueProto)* LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto nameValueProto*)
-  ;
+// patternLiteral
+//   : '{' LTERM* nameValueProto? LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto?)
+//   | '{' LTERM*  p1=nameValueProto (',' LTERM* p2=nameValueProto)* LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto nameValueProto*)
+//   ;
+
 
 
 patternLiteral
   : '{' LTERM* name=expression  LTERM* (':' LTERM* val=expression  LTERM* (':' LTERM* proto=expression LTERM* )? )? '}' -> ^(PATTERN_LITERAL $name ($val ($proto)? )?)
+  | '{' LTERM* name=expression  LTERM* ':' LTERM*  ':' LTERM* proto=expression LTERM* '}' -> ^(PATTERN_MIDDLE_MISSING_LITERAL $name $proto )
   ;
 
 
@@ -662,11 +665,6 @@ propertyNameAndValue
 	: propertyName LTERM* ':' LTERM* assignmentExpression -> ^(NAME_VALUE propertyName assignmentExpression)
 	;
 
-/*
-nameValueProto
-    : (propertyName LTERM* -> ^(NAME_VALUE_PROTO ^(NAME propertyName))) ':'  LTERM* (assignmentExpression LTERM*-> ^($nameValueProto ^(VALUE assignmentExpression)))? ':' LTERM* ( assignmentExpression -> ^($nameValueProto ^(PROTO assignmentExpression)))?
-    ;
-*/
 
 nameValueProto
     : (propertyName LTERM*) ':'  LTERM* (a1=assignmentExpression LTERM*)? ':' LTERM* ( a2=assignmentExpression )? -> ^(NAME_VALUE_PROTO ^(NAME propertyName) (^(VALUE $a1))? (^(PROTO $a2))? )
