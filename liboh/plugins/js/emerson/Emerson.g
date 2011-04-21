@@ -118,7 +118,8 @@ tokens
     MESSAGE_RECV;
     PAREN;
     PATTERN_LITERAL;
-    PATTERN_MIDDLE_MISSING_LITERAL;
+    PATTERN_LITERAL_INTERNAL;    
+    PATTERN_MIDDLE_MISSING_LITERAL_INTERNAL;
     NAME_VALUE_PROTO;
     NAME;
     VALUE;
@@ -169,26 +170,27 @@ functionBody
 
 // statements
 statement
-	: noOpStatement
-    | statementBlock
-	| variableStatement
-	| emptyStatement
-	| expressionStatement
-	| ifStatement
-	| iterationStatement
-	| continueStatement
+        : noOpStatement
+        | msgSendStatement
+	| msgRecvStatement
+        | statementBlock
+        | variableStatement
+        | emptyStatement
+        | expressionStatement
+        | ifStatement
+        | iterationStatement
+        | continueStatement
 	| breakStatement
 	| returnStatement
 	| withStatement
 	| labelledStatement
 	| switchStatement
 	| throwStatement
-    | whenStatement
+        | whenStatement
 	| tryStatement
-	| msgSendStatement
-	| msgRecvStatement
 	;
-	
+
+        
 statementBlock
         : '{' LTERM* '}'   -> ^(NOOP)
 	| '{' LTERM* (statementList->statementList) LTERM* '}' 
@@ -374,12 +376,13 @@ msgSendStatement
 ;
 // expressions
 expression
-	: assignmentExpression (LTERM* ',' LTERM* assignmentExpression)* ->  ^(EXPR_LIST assignmentExpression+)
+//	: assignmentExpression (LTERM* ',' LTERM* assignmentExpression)* ->  ^(EXPR_LIST assignmentExpression+)
+	: assignmentExpression ->  ^(EXPR_LIST assignmentExpression)
 	;
 	
 expressionNoIn
-	: assignmentExpressionNoIn (LTERM* ',' LTERM* assignmentExpressionNoIn)* -> ^(EXPR_LIST assignmentExpressionNoIn+)
-
+//	: assignmentExpressionNoIn (LTERM* ',' LTERM* assignmentExpressionNoIn)* -> ^(EXPR_LIST assignmentExpressionNoIn+)
+	: assignmentExpressionNoIn -> ^(EXPR_LIST assignmentExpressionNoIn)
 	;
 
 assignmentExpression
@@ -655,10 +658,13 @@ objectLiteral
 
 
 patternLiteral
-  : '{' LTERM* name=expression  LTERM* (':' LTERM* val=expression  LTERM* (':' LTERM* proto=expression LTERM* )? )? '}' -> ^(PATTERN_LITERAL $name ($val ($proto)? )?)
-  | '{' LTERM* name=expression  LTERM* ':' LTERM*  ':' LTERM* proto=expression LTERM* '}' -> ^(PATTERN_MIDDLE_MISSING_LITERAL $name $proto )
+  : '{' firstLiteral=patternLiteralInternal LTERM* ( ',' LTERM* secondLiteral=patternLiteralInternal LTERM* )* '}' -> ^(PATTERN_LITERAL $firstLiteral $secondLiteral*)
   ;
 
+patternLiteralInternal
+  : LTERM* name=expression  LTERM* (':' LTERM* val=expression  LTERM* (':' LTERM* proto=expression LTERM* )? )?  -> ^(PATTERN_LITERAL_INTERNAL $name ($val ($proto)? )?)
+  | LTERM* name=expression  LTERM* ':' LTERM*  ':' LTERM* proto=expression LTERM*  -> ^(PATTERN_MIDDLE_MISSING_LITERAL_INTERNAL $name $proto )
+  ;
 
   
 propertyNameAndValue

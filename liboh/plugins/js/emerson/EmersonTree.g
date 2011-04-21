@@ -1320,20 +1320,35 @@ objectLiteral
 				
 	;
 
-//patternLiteral definition
+
+//patternLiteral
 patternLiteral
+   : ^(PATTERN_LITERAL
+        {
+            APP(" [ ");
+        }
+        patternLiteralInternal
+        (
+            { APP(",");}
+            patternLiteralInternal
+        )*
+        {
+            APP(" ]");
+        }
+       )
+   ;
+
+        
+//patternLiteralInternal definition
+patternLiteralInternal
     @init
     {
         int howManyArgs=0;
-        APP("new util.Pattern( ");
     }
-    @after
-    {
-        
-        APP(" )");
-    }
-    : ^(PATTERN_LITERAL
-
+    : ^(PATTERN_LITERAL_INTERNAL
+        {
+           APP("new util.Pattern( ");
+        }
         name=expression
         {
             ++howManyArgs;
@@ -1357,15 +1372,22 @@ patternLiteral
             {
                 APP(" , null");
             }
+            APP(" )");  
         }
         
        )
-     | ^(PATTERN_MIDDLE_MISSING_LITERAL
+     | ^(PATTERN_MIDDLE_MISSING_LITERAL_INTERNAL
+         {
+             APP("new util.Pattern( ");
+         }
          name=expression
          {
              APP(", null,");
          }
          proto=expression
+         {
+            APP(" )");  
+         }
        )
      ;        
 
