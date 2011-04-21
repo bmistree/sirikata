@@ -169,7 +169,7 @@ functionBody
 // statements
 statement
 	: noOpStatement
-        | statementBlock
+    | statementBlock
 	| variableStatement
 	| emptyStatement
 	| expressionStatement
@@ -182,7 +182,7 @@ statement
 	| labelledStatement
 	| switchStatement
 	| throwStatement
-        | whenStatement
+    | whenStatement
 	| tryStatement
 	| msgSendStatement
 	| msgRecvStatement
@@ -607,13 +607,13 @@ unaryExpression
 
 primaryExpression
 	: 'this'
-        | vectorLiteral 
+    | vectorLiteral 
 	| Identifier
-        | dollarExpression
+    | dollarExpression
 	| literal
 	| arrayLiteral
 	| objectLiteral
-        | patternLiteral
+    | patternLiteral
 	| '(' LTERM* expression LTERM* ')' -> ^( PAREN expression )
 	;
 
@@ -649,9 +649,15 @@ objectLiteral
 patternLiteral
   : '{' LTERM* nameValueProto? LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto?)
   | '{' LTERM*  p1=nameValueProto (',' LTERM* p2=nameValueProto)* LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto nameValueProto*)
-
   ;
 
+
+patternLiteral
+  : '{' LTERM* name=expression  LTERM* (':' LTERM* val=expression  LTERM* (':' LTERM* proto=expression LTERM* )? )? '}' -> ^(PATTERN_LITERAL $name ($val ($proto)? )?)
+  ;
+
+
+  
 propertyNameAndValue
 	: propertyName LTERM* ':' LTERM* assignmentExpression -> ^(NAME_VALUE propertyName assignmentExpression)
 	;

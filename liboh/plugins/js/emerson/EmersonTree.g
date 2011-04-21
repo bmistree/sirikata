@@ -1204,45 +1204,17 @@ primaryExpression
 	  { 
             APP((const char*)$Identifier.text->chars);
 	  }
-        | dollarExpression
+    | dollarExpression
 	| literal
 	| arrayLiteral
 	| objectLiteral
-        | patternLiteral
+    | patternLiteral
 	| ^(PAREN { APP("( "); } expression { APP(" )");})
-        | vectorLiteral
+    | vectorLiteral
 	;
 
-/*
-vectorLiteral
-        : ^(VECTOR
-            {
-                APP(" new util.Vec3(");
-            }
-            (exp1=expression
-              {
-                  APP((const char*)$exp1.text->chars);
-                  APP(",");
-              }
-            )
-            (exp2=expression
-              {
-                  APP((const char*)$exp2.text->chars);
-                  APP(",");
-              }
-            )
-            (exp3=expression
-              {
-                  APP((const char*)$exp3.text->chars);
-                  APP(")");
-              }
-            )
-           )
-        ;       
-*/
 
-
-
+//vectorLiteral definition
 vectorLiteral
         : ^(VECTOR
             {
@@ -1250,19 +1222,16 @@ vectorLiteral
             }
             (exp1=assignmentExpression
               {
-                  //APP((const char*)$exp1.text->chars);
                   APP(",");
               }
             )
             (exp2=assignmentExpression
               {
-                  //APP((const char*)$exp2.text->chars);
                   APP(",");
               }
             )
             (exp3=assignmentExpression
               {
-                  //APP((const char*)$exp3.text->chars);
                   APP(")");
               }
             )
@@ -1350,69 +1319,74 @@ objectLiteral
 			)
 				
 	;
-	
-// patternLiteral definition.
+
+//patternLiteral definition
 patternLiteral
+: ^(PATTERN_LITERAL
+lkjs;
 
-  :^(PATTERN_LITERAL {APP("new util.Pattern()");} )
-  |^(PATTERN_LITERAL 
-      nameValueProto
-    )
-  |^(PATTERN_LITERAL 
+
+// patternLiteral definition.
+// patternLiteral
+//   :^(PATTERN_LITERAL {APP("new util.Pattern()");} )
+//   |^(PATTERN_LITERAL 
+//       nameValueProto
+//     )
+//   |^(PATTERN_LITERAL 
 	   
-				{ APP("[ ");}
-				  nameValueProto
-				( 
-				  { 
-					  APP(", "); 
-					} 
+// 				{ APP("[ ");}
+// 				  nameValueProto
+// 				( 
+// 				  { 
+// 					  APP(", "); 
+// 					} 
 				
-				  nameValueProto
-				)*
+// 				  nameValueProto
+// 				)*
 
-      	                      { 
-				  APP(" ] "); 
+//       	                      { 
+// 				  APP(" ] "); 
 				
-				}
+// 				}
 
-			)
+// 			)
 				
-	;
+// 	;
 	
 
-nameValueProto
-  : ^(NAME_VALUE_PROTO
-          {
-            APP("new util.Pattern( ");
-          }
-        ^(NAME
-          propertyName
-                   )
+// nameValueProto
+//   : ^(NAME_VALUE_PROTO
+//           {
+//             APP("new util.Pattern( ");
+//           }
+//         ^(NAME
+//           propertyName
+//                    )
         
-         (
-         ^(VALUE
-            {
-              APP(", ");
-            }
+//          (
+//          ^(VALUE
+//             {
+//               APP(", ");
+//             }
 
-            assignmentExpression
-         ))?
+//             assignmentExpression
+//          ))?
 
-         (
+//          (
            
-         ^(PROTO
-            {
-              APP(", ");
-            }
-            assignmentExpression
-         ) )?
+//          ^(PROTO
+//             {
+//               APP(", ");
+//             }
+//             assignmentExpression
+//          ) )?
 
-         {
-            APP(" )");
-         }
+//          {
+//             APP(" )");
+//          }
 
-      )
-  ;
+//       )
+//   ;
 
 propertyNameAndValue
 	: ^(NAME_VALUE 
