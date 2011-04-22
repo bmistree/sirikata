@@ -35,67 +35,11 @@
 #include <iostream>
 #include <iomanip>
 #include "JSObjects/JSObjectsUtils.hpp"
-
+#include "JSObjectStructs/JSPatternStruct.hpp"
 using namespace v8;
 
 namespace Sirikata {
 namespace JS {
-
-
-// Pattern::Pattern(const std::string& _name,v8::Handle<v8::Value> _value,v8::Handle<v8::Value> _proto)
-//  :mName(_name), mValue(_value), mPrototype(_proto)
-Pattern::Pattern(const std::string& _name,v8::Handle<v8::Value> _value,v8::Handle<v8::Value> _proto)
- :mName(_name), mValue(v8::Persistent<v8::Value>::New(_value)), mPrototype(v8::Persistent<v8::Value>::New(_proto))
-{
-}
-
-
-bool Pattern::matches(v8::Handle<v8::Object> obj) const
-{
-    if (mName == "")
-        return true;
-    
-    if (!obj->Has(v8::String::New(mName.c_str())))
-    {
-        return false;
-    }
-    
-    if (hasValue())
-    {
-        Handle<Value> field = obj->Get(v8::String::New(mName.c_str()));
-
-        if (!field->Equals(mValue))
-            return false;
-
-    }
-
-    if (hasPrototype()) {
-        // FIXME check prototype
-    }
-
-    return true;
-}
-
-
-//prints a pattern
-void Pattern::printPattern() const
-{
-    //name
-    std::cout<<"Name: "<<mName.c_str()<<"\n";
-
-    if (hasValue())
-    {
-        //std::cout<<" Having hard time with value\n";
-        v8::String::Utf8Value stringValue(mValue);
-        const char* strval = ToCString(stringValue);
-        std::string stringVal (strval);
-        std::cout<<"  Value: "<<stringVal<<"\n";
-    }
-    else
-        std::cout<<"  Value: ANY\n";
-
-    //FIXME: Prototype still needs to be printed.
-}
 
 
 
@@ -172,7 +116,7 @@ Handle<Value> PatternConstructor(const Arguments& args) {
         if (! decodeSuccessful)
             return v8::ThrowException( v8::Exception::Error(v8::String::New(errorMessage.c_str(), errorMessage.length())));
     }
-    
+
 
     Handle<Value> val   =  (args.Length() > 1) ? args[1] : Handle<Value>();
     Handle<Value> proto =  (args.Length() > 2) ? args[2] : Handle<Value>();

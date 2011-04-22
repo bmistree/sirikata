@@ -1342,7 +1342,7 @@ objectLiteralInternal
         {
             if (! hasValue)
             {
-                APP(": system.PATTERN_TOKEN");
+                APP(": system.__PATTERN_TOKEN");
             }
         }
        )

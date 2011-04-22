@@ -62,3 +62,4 @@ system.toString = function() {
     return "[object system]";
 };
 system.__prettyPrintString__ = "[object system]";
+system.__PATTERN_TOKEN = "__SYS_PATTERN_TOKEN^%$__";
