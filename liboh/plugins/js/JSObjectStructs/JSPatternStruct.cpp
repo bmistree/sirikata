@@ -6,12 +6,14 @@ namespace JS {
 
 
 using namespace v8;
-// Pattern::Pattern(const std::string& _name,v8::Handle<v8::Value> _value,v8::Handle<v8::Value> _proto)
-//  :mName(_name), mValue(_value), mPrototype(_proto)
 Pattern::Pattern(const std::string& _name,v8::Handle<v8::Value> _value,v8::Handle<v8::Value> _proto)
  :mName(_name), mValue(v8::Persistent<v8::Value>::New(_value)), mPrototype(v8::Persistent<v8::Value>::New(_proto))
 {
 }
+
+Pattern::Pattern(v8::Handle<v8::Object>
+
+
 
 
 bool Pattern::matches(v8::Handle<v8::Object> obj) const
