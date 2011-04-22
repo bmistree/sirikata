@@ -13,6 +13,8 @@
 namespace Sirikata {
 namespace JS {
 
+const static char* JSSERIALIZER_TOKEN_FIELD = "__JSSERIALIZER_TOKEN_FIELD__";
+const static uint64 JSSERIALIZER_TOKEN = 103025;
 
 class JSSerializer
 {
