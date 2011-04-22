@@ -84,6 +84,7 @@ tokens
     GREATER_THAN_EQUAL;
     INSTANCE_OF;
     IN;
+    EMPTY_BLOCK;
     LEFT_SHIFT;
     RIGHT_SHIFT;
     TRIPLE_SHIFT;
@@ -162,15 +163,15 @@ formalParameterList
 	;
  
 functionBody
- : '{' LTERM* '}' -> ^(EMPTY_FUNC_BODY)
-	| '{' LTERM* (sourceElements -> sourceElements) LTERM* '}'
+        : '{' LTERM* '}' -> ^(EMPTY_FUNC_BODY)
+ 	| '{' LTERM* (sourceElements -> sourceElements) LTERM* '}'
 	;
 
 // statements
 statement
-        : noOpStatement
-        | msgSendStatement
+        : msgSendStatement
 	| msgRecvStatement
+        | noOpStatement
         | statementBlock
         | variableStatement
         | emptyStatement
@@ -190,14 +191,14 @@ statement
 
         
 statementBlock
-        : '{' LTERM* '}'   -> ^(NOOP)
+        : '{' LTERM* '}'   -> ^(EMPTY_BLOCK)
 	| '{' LTERM* (statementList->statementList) LTERM* '}' 
 	; 
 
 noOpStatement
         : ';' -> ^(NOOP)
         ;
-        
+
         
 statementList
 	: (LTERM* statement)+ -> ^(SLIST statement+)
@@ -630,30 +631,17 @@ dollarExpression
 // arrayLiteral definition.
 arrayLiteral
   : '[' LTERM* (assignmentExpression)? LTERM* ']' -> ^(ARRAY_LITERAL assignmentExpression?)
-	| '[' LTERM* e1=assignmentExpression (',' LTERM* e2=assignmentExpression)* LTERM* ']' -> ^(ARRAY_LITERAL assignmentExpression assignmentExpression*)
-	;
+  | '[' LTERM* e1=assignmentExpression (',' LTERM* e2=assignmentExpression)* LTERM* ']' -> ^(ARRAY_LITERAL assignmentExpression assignmentExpression*)
+  ;
        
-// objectLiteral definition.
-// objectLiteral
-//   : '{' LTERM* propertyNameAndValue? LTERM* '}' -> ^(OBJ_LITERAL propertyNameAndValue?)
-//   | '{' LTERM* p1=propertyNameAndValue (',' LTERM* p2=propertyNameAndValue)* LTERM*     '}' -> ^(OBJ_LITERAL propertyNameAndValue propertyNameAndValue*) 
-//   ;
-
 
 objectLiteral
-  : '{' (firstLiteral=objectLiteralInternal LTERM* ( ',' LTERM* secondLiteral=objectLiteralInternal LTERM* )* )? '}' -> ^(OBJECT_LITERAL ($firstLiteral $secondLiteral*)?)
+  : '{' LTERM* (firstLiteral=objectLiteralInternal LTERM* ( ',' LTERM* secondLiteral=objectLiteralInternal LTERM* )* )?  '}' -> ^(OBJECT_LITERAL ($firstLiteral ($secondLiteral)* )?)
   ;
 
 objectLiteralInternal
   : LTERM* name=expression  LTERM* (':' LTERM* val=expression  LTERM* (':' LTERM* proto=expression LTERM* )? )?  -> ^(OBJECT_LITERAL_INTERNAL $name $val?)
   ;
-
-  
-// propertyNameAndValue
-// 	: propertyName LTERM* ':' LTERM* assignmentExpression -> ^(NAME_VALUE propertyName assignmentExpression)
-// 	;
-
-
 
 
 propertyName

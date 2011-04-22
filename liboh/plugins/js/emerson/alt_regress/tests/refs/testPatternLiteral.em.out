@@ -1,83 +1,33 @@
 
-printing pattern
-
-msg
-oo
-other
-
-printing pattern
-
-fw
-null
-null
-
-printing pattern
-
-msg
-3oo
-other
-
-printing pattern
-
-fw
-ooo
-ewoi
-
-printing pattern
-
-3
-null
-null
-
 Registered handler
 
 1
 1039
 null
-[object Object],[object Object]
+[object Object]
 null
 
 
 Done registering handlers
 
 
-
-printing pattern2
-
-msg
 3oo
-other
-
-printing pattern2
-
-fw
 ooo
-ewoi
 
 Registered handler
 
 2
 1039
 null
-[object Object],[object Object]
+[object Object]
 null
 
 
 Done registering handlers
 
 
-
-printing pattern2
-
-msg
 oo
-other
-
-printing pattern2
-
-fw
-null
-null
+______PAT_TOKEN**____
 
 Registered handler
 
@@ -91,55 +41,22 @@ null
 Done registering handlers
 
 
-
-printing pattern2
-
-3
-null
-null
-
-printing pattern
-
-msg3
-3oo
-other
-
-printing pattern
-
-oe
-null
-ewoifj
+______PAT_TOKEN**____
 
 Registered handler
 
 4
 1039
 null
-[object Object],[object Object]
+[object Object]
 null
 
 
 Done registering handlers
 
 
-
-printing pattern2
-
-msg3
 3oo
-other
-
-printing pattern2
-
-oe
-null
-ewoifj
-
-printing pattern
-
-msqg
-null
-o.ther
+______PAT_TOKEN**____
 
 Registered handler
 
@@ -153,18 +70,7 @@ null
 Done registering handlers
 
 
-
-printing pattern2
-
-msqg
-null
 o.ther
-
-printing pattern
-
-so
-null
-null
 
 Registered handler
 
@@ -178,39 +84,19 @@ null
 Done registering handlers
 
 
+______PAT_TOKEN**____
 
-printing pattern2
+Registered handler
 
-so
+7
+1039
 null
-null
-
-printing pattern2
-
-msg
-oo
-other
-
-printing pattern2
-
-fw
-null
+[object Object]
 null
 
-printing pattern2
 
-msg
-3oo
-other
+Done registering handlers
 
-printing pattern2
 
-fw
-ooo
-ewoi
-
-printing pattern2
-
-3
-null
-null
+______PAT_TOKEN**____
+[object Object]

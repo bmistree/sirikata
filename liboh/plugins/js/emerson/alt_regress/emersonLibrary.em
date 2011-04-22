@@ -43,26 +43,6 @@ util.plus = function(a,b)
     return a+b;
 };
 
-util.Pattern = function (a, b, c)
-{
-    print("\nprinting pattern\n");
-    print(a);
-    print(b);
-    print(c);
-    this.a = a;
-    this.b = b;
-    this.c = c;
-    
-
-    this.print = function()
-    {
-        print("\nprinting pattern2\n");
-        print(this.a);
-        print(this.b);
-        print(this.c);
-    };
-};
-
 
 system = {    };
 
@@ -80,10 +60,13 @@ system.registerHandler = function (a, b, c, d)
     print(d);
     print("\n\nDone registering handlers\n\n");
 
-    if (c instanceof Array)
+    if (typeof(c) == 'object')
     {
-        for (var s=0; s < c.length; ++s)
-            c[s].print();
+        for (var s in c)
+        {
+            print( c[s]);
+        }
     }
-        
 };
+
+system.PATTERN_TOKEN = "______PAT_TOKEN**____";

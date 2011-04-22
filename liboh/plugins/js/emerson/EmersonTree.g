@@ -139,7 +139,9 @@ functionBody
 
 // statements
 statement
-    : noOpStatement
+    : msgSendStatement
+    | msgRecvStatement
+    | noOpStatement
     | statementBlock
     | variableStatement
     | expressionStatement
@@ -154,8 +156,7 @@ statement
     | throwStatement
     | whenStatement
     | tryStatement
-    | msgSendStatement
-    | msgRecvStatement
+
     ;   
 
 noOpStatement
@@ -166,7 +167,12 @@ noOpStatement
         ;
     
 statementBlock
-	: {APP(" {\n "); } statementList {  
+	: ^(EMPTY_BLOCK
+            {
+                APP("{ }");
+            }
+           )
+        | {APP(" {\n "); } statementList {  
             APP(" }\n");
         }
 	;
@@ -695,11 +701,9 @@ msgRecvStatement
       leftHandSideExpression
 
     )
-
     {
       APP(", null) ");  // No sender case
     }
-
 ;
 
 catchClause
@@ -1263,50 +1267,58 @@ dollarExpression
 arrayLiteral
   : ^(ARRAY_LITERAL {APP("[ ]"); })
   | ^(ARRAY_LITERAL 
-
-	     { APP("[ "); }
-       (assignmentExpression)
-			 { APP(" ]"); }
+        { APP("[ "); }
+        (assignmentExpression)
+        { APP(" ]"); }
       )
 
   | ^(ARRAY_LITERAL
-	       {
-                 APP("[ ");
-		}
-                assignmentExpression
-      	
-	       (
-                 {
-                   APP(", ");
-                 }
-                 assignmentExpression
-		)*
-                {
-                  APP(" ] ");
-                }
+        {
+            APP("[ ");
+        }
+        assignmentExpression
+        (
+            {
+                APP(", ");
+            }
+            assignmentExpression
+        )*
+        {
+            APP(" ] ");
+        }
       )
-
-       	;
+  ;
        
-
 
 //objectLiteral
 objectLiteral
-   : ^(OBJECT_LITERAL
+   : ^(OBJECT_LITERAL  //have to explicitly match empty object-literal separately because either I'm stupid or antlr is
+       {
+            APP(" { }");
+       }
+      )
+   | ^(OBJECT_LITERAL
+       {
+            APP(" { ");
+       }
+       (objectLiteralInternal)
+       {
+            APP(" } ");
+       }
+      )
+   | ^(OBJECT_LITERAL
         {
             APP(" { ");
         }
-        (objectLiteralInternal
-            (
-                {
-                    APP(",");
-                }
-                objectLiteralInternal
-
-            )*
-        )?
+        objectLiteralInternal
+        (
+            {
+                APP(",");
+            }
+            objectLiteralInternal
+        )*
         {
-            APP(" }");
+           APP(" }");
         }
        )
    ;
@@ -1330,7 +1342,7 @@ objectLiteralInternal
         {
             if (! hasValue)
             {
-                APP(" system.PATTERN_TOKEN");
+                APP(": system.PATTERN_TOKEN");
             }
         }
        )
