@@ -1208,7 +1208,6 @@ primaryExpression
     | literal
     | arrayLiteral
     | objectLiteral
-    | patternLiteral
     | ^(PAREN { APP("( "); } expression { APP(" )");})
     | vectorLiteral
 	;
@@ -1289,181 +1288,56 @@ arrayLiteral
 
        	;
        
-// objectLiteral definition.
+
+
+//objectLiteral
 objectLiteral
-  :^(OBJ_LITERAL {APP("{ }");} )
-  |^(OBJ_LITERAL 
-	    { APP("{ "); } 
-            
-            (propertyNameAndValue)
-
-           {  APP(" }"); }
-    )
-	|^(OBJ_LITERAL 
-	   
-				{ APP("{ ");}
-				propertyNameAndValue
-				( 
-				  { 
-					  APP(", "); 
-					} 
-				
-				  propertyNameAndValue
-				)*
-
-      	{ 
-				  APP(" } "); 
-				
-				}
-
-			)
-				
-	;
-
-
-//patternLiteral
-patternLiteral
-   : ^(PATTERN_LITERAL
+   : ^(OBJECT_LITERAL
         {
-            APP(" [ ");
+            APP(" { ");
         }
-        patternLiteralInternal
-        (
-            { APP(",");}
-            patternLiteralInternal
-        )*
+        (objectLiteralInternal
+            (
+                {
+                    APP(",");
+                }
+                objectLiteralInternal
+
+            )*
+        )?
         {
-            APP(" ]");
+            APP(" }");
         }
        )
    ;
 
         
 //patternLiteralInternal definition
-patternLiteralInternal
+objectLiteralInternal
     @init
     {
-        int howManyArgs=0;
+        bool hasValue = false;
     }
-    : ^(PATTERN_LITERAL_INTERNAL
-        {
-           APP("new util.Pattern( ");
-        }
+    : ^(OBJECT_LITERAL_INTERNAL
         name=expression
-        {
-            ++howManyArgs;
-        }
         (
             {
-                APP(", " );
-                ++howManyArgs;
+                APP(" : " );
+                hasValue = true;
             }
             val=expression
-            (
-                {
-                    APP(", " );
-                    ++howManyArgs;
-                }
-                proto=expression
-            )?
         )?
         {
-            for (int s=howManyArgs; s < 3; ++s)
+            if (! hasValue)
             {
-                APP(" , null");
+                APP(" system.PATTERN_TOKEN");
             }
-            APP(" )");  
         }
-        
-       )
-     | ^(PATTERN_MIDDLE_MISSING_LITERAL_INTERNAL
-         {
-             APP("new util.Pattern( ");
-         }
-         name=expression
-         {
-             APP(", null,");
-         }
-         proto=expression
-         {
-            APP(" )");  
-         }
        )
      ;        
 
 
 
-
-
-
-// patternLiteral definition.
-// patternLiteral
-//   :^(PATTERN_LITERAL {APP("new util.Pattern()");} )
-//   |^(PATTERN_LITERAL 
-//       nameValueProto
-//     )
-//   |^(PATTERN_LITERAL 
-	   
-// 				{ APP("[ ");}
-// 				  nameValueProto
-// 				( 
-// 				  { 
-// 					  APP(", "); 
-// 					} 
-				
-// 				  nameValueProto
-// 				)*
-
-//       	                      { 
-// 				  APP(" ] "); 
-				
-// 				}
-
-// 			)
-				
-// 	;
-	
-
-// nameValueProto
-//   : ^(NAME_VALUE_PROTO
-//           {
-//             APP("new util.Pattern( ");
-//           }
-//         ^(NAME
-//           propertyName
-//                    )
-        
-//          (
-//          ^(VALUE
-//             {
-//               APP(", ");
-//             }
-
-//             assignmentExpression
-//          ))?
-
-//          (
-           
-//          ^(PROTO
-//             {
-//               APP(", ");
-//             }
-//             assignmentExpression
-//          ) )?
-
-//          {
-//             APP(" )");
-//          }
-
-//       )
-//   ;
-
-propertyNameAndValue
-	: ^(NAME_VALUE 
-	   propertyName 
-			{	APP(" : ");}
-				assignmentExpression)
-	;
 
 propertyName
 	: Identifier {  APP((const char*)$Identifier.text->chars); }

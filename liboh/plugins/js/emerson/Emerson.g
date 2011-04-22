@@ -93,7 +93,6 @@ tokens
     DIV;
     MOD;
     ARRAY_LITERAL;
-    OBJ_LITERAL;
     NAME_VALUE;
     DELETE_OP;
     VOID;
@@ -117,9 +116,8 @@ tokens
     MESSAGE_SEND;
     MESSAGE_RECV;
     PAREN;
-    PATTERN_LITERAL;
-    PATTERN_LITERAL_INTERNAL;    
-    PATTERN_MIDDLE_MISSING_LITERAL_INTERNAL;
+    OBJECT_LITERAL;
+    OBJECT_LITERAL_INTERNAL;    
     NAME_VALUE_PROTO;
     NAME;
     VALUE;
@@ -617,7 +615,6 @@ primaryExpression
     | literal
     | arrayLiteral
     | objectLiteral
-    | patternLiteral
     | '(' LTERM* expression LTERM* ')' -> ^( PAREN expression )
     ;
 
@@ -625,13 +622,6 @@ vectorLiteral
         : '<' LTERM* e1=assignmentExpression LTERM* ',' LTERM* e2=assignmentExpression LTERM* ',' LTERM* e3=assignmentExpression LTERM* '>' -> ^(VECTOR $e1 $e2 $e3)
         ;
 
-/*
-: '<' LTERM* e1=Identifier LTERM* ',' LTERM* e2=Identifier LTERM* ',' LTERM* e3=Identifier LTERM* '>' -> ^(VECTOR $e1 $e2 $e3)
-        ;
-*/
-        
-/*        : '<' LTERM* x=expression LTERM* ',' LTERM* y=expression LTERM* ',' LTERM* z=expression LTERM* '>' -> ^(VECTOR $x $y $z)
-*/
         
 dollarExpression
         : '`' LTERM* Identifier LTERM* '`' -> ^(DOLLAR_EXPRESSION Identifier)
@@ -644,37 +634,25 @@ arrayLiteral
 	;
        
 // objectLiteral definition.
-objectLiteral
-  : '{' LTERM* propertyNameAndValue? LTERM* '}' -> ^(OBJ_LITERAL propertyNameAndValue?)
-	| '{' LTERM* p1=propertyNameAndValue (',' LTERM* p2=propertyNameAndValue)* LTERM*     '}' -> ^(OBJ_LITERAL propertyNameAndValue propertyNameAndValue*) 
-	;
-
-// patternLiteral definition
-// patternLiteral
-//   : '{' LTERM* nameValueProto? LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto?)
-//   | '{' LTERM*  p1=nameValueProto (',' LTERM* p2=nameValueProto)* LTERM* '}' -> ^(PATTERN_LITERAL nameValueProto nameValueProto*)
+// objectLiteral
+//   : '{' LTERM* propertyNameAndValue? LTERM* '}' -> ^(OBJ_LITERAL propertyNameAndValue?)
+//   | '{' LTERM* p1=propertyNameAndValue (',' LTERM* p2=propertyNameAndValue)* LTERM*     '}' -> ^(OBJ_LITERAL propertyNameAndValue propertyNameAndValue*) 
 //   ;
 
 
-
-patternLiteral
-  : '{' firstLiteral=patternLiteralInternal LTERM* ( ',' LTERM* secondLiteral=patternLiteralInternal LTERM* )* '}' -> ^(PATTERN_LITERAL $firstLiteral $secondLiteral*)
+objectLiteral
+  : '{' (firstLiteral=objectLiteralInternal LTERM* ( ',' LTERM* secondLiteral=objectLiteralInternal LTERM* )* )? '}' -> ^(OBJECT_LITERAL ($firstLiteral $secondLiteral*)?)
   ;
 
-patternLiteralInternal
-  : LTERM* name=expression  LTERM* (':' LTERM* val=expression  LTERM* (':' LTERM* proto=expression LTERM* )? )?  -> ^(PATTERN_LITERAL_INTERNAL $name ($val ($proto)? )?)
-  | LTERM* name=expression  LTERM* ':' LTERM*  ':' LTERM* proto=expression LTERM*  -> ^(PATTERN_MIDDLE_MISSING_LITERAL_INTERNAL $name $proto )
+objectLiteralInternal
+  : LTERM* name=expression  LTERM* (':' LTERM* val=expression  LTERM* (':' LTERM* proto=expression LTERM* )? )?  -> ^(OBJECT_LITERAL_INTERNAL $name $val?)
   ;
 
   
-propertyNameAndValue
-	: propertyName LTERM* ':' LTERM* assignmentExpression -> ^(NAME_VALUE propertyName assignmentExpression)
-	;
+// propertyNameAndValue
+// 	: propertyName LTERM* ':' LTERM* assignmentExpression -> ^(NAME_VALUE propertyName assignmentExpression)
+// 	;
 
-
-nameValueProto
-    : (propertyName LTERM*) ':'  LTERM* (a1=assignmentExpression LTERM*)? ':' LTERM* ( a2=assignmentExpression )? -> ^(NAME_VALUE_PROTO ^(NAME propertyName) (^(VALUE $a1))? (^(PROTO $a2))? )
-    ;
 
 
 
