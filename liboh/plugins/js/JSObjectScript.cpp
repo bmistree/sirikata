@@ -1267,6 +1267,23 @@ v8::Handle<v8::Object> JSObjectScript::getMessageSender(const ODP::Endpoint& src
     return returner;
 }
 
+lkjs;
+void JSObjectScript::getMessageReceiver(const ODP::Endpoint& src, const ODP::Endpoint& dst)
+{
+    SpaceObjectReference to(dst.space(),dst.object());
+    
+    PresenceMapIter iter = mPresences.find(to);
+    if (iter == mPresences.end())
+    {
+        JSLOG(error, "Received a message for a presence that doesn't exist");
+        return;
+    }
+
+    
+    PresenceMap mPresences;
+    lkjs;
+    
+}
 
 void JSObjectScript::handleCommunicationMessageNewProto (const ODP::Endpoint& src, const ODP::Endpoint& dst, MemoryReference payload)
 {

@@ -92,6 +92,8 @@ std.sysExtender = system.Class.extend(
             this._curSys.onPresenceConnected(this.__wrapPressConnCB(funcToCall));
         },
 
+
+        
         onPresenceDisconnected : function (funcToCall)
         {
             this._curSys.onPresenceDisconnected(this.__wrapPressConnCB(funcToCall));
@@ -100,12 +102,44 @@ std.sysExtender = system.Class.extend(
         
         __onProxAdded : function (presCalling, funcToCall)
         {
-            lkjs;
-            presCalling.onProxAdded
-        }
+            var wrappedCallback = this.__wrapOnProx(presCalling,funcToCall);
+            presCalling.onProxAdded(wrappedCallback);
+        },
 
-        __wrapOnProx
+        __onProxRemoved : function (presCalling, funcToCall)
+        {
+            var wrappedCallback = this.__wrapOnProx(presCalling,funcToCall);
+            presCalling.onProxRemoved(wrappedCallback);
+        },
         
+        __wrapOnProx : function (presCalling,funcToCall)
+        {
+            var returner = function(newVis)
+            {
+                this.__setBehindSelf(presCalling);
+                funcToCall(newVis);
+            };
+
+            return std.core.bind(returner,this);
+        },
+
+        //registerHandlers
+        registerHandler : function (arg1,arg2,callback)
+        {
+            var wrappedCallback = this.__wrapRegHandler(callback);
+            this._curSys.registerHandler(arg1,arg2,wrappedCallback);
+        },
+
+        __wrapRegHandler : function (toCallback)
+        {
+            var returner = function (msg,sender,receiver)
+            {
+                this.addToSelfMap(receiver);
+                this.__setBehindSelf(receiver);
+                toCallback(msg,sender);
+            };
+            return std.core.bind(returner,this);
+        }
     }
     );
 
