@@ -1267,23 +1267,6 @@ v8::Handle<v8::Object> JSObjectScript::getMessageSender(const ODP::Endpoint& src
     return returner;
 }
 
-lkjs;
-void JSObjectScript::getMessageReceiver(const ODP::Endpoint& src, const ODP::Endpoint& dst)
-{
-    SpaceObjectReference to(dst.space(),dst.object());
-    
-    PresenceMapIter iter = mPresences.find(to);
-    if (iter == mPresences.end())
-    {
-        JSLOG(error, "Received a message for a presence that doesn't exist");
-        return;
-    }
-
-    
-    PresenceMap mPresences;
-    lkjs;
-    
-}
 
 void JSObjectScript::handleCommunicationMessageNewProto (const ODP::Endpoint& src, const ODP::Endpoint& dst, MemoryReference payload)
 {
@@ -1317,18 +1300,18 @@ void JSObjectScript::handleCommunicationMessageNewProto (const ODP::Endpoint& sr
     // Checks if matches some handler.  Try to dispatch the message
     bool matchesSomeHandler = false;
 
+    SpaceObjectReference to  (dst.space(), dst.object());
 
     //cannot affect the event handlers when we are executing event handlers.
     mHandlingEvent = true;
 
     for (int s=0; s < (int) mEventHandlers.size(); ++s)
     {
-        if (mEventHandlers[s]->matches(obj,msgSender))
+        if (mEventHandlers[s]->matches(obj,msgSender,to))
         {
             // Adding support for the knowing the message properties too
-            int argc = 2;
-
-            Handle<Value> argv[2] = { obj, msgSender };
+            int argc = 3;
+            Handle<Value> argv[3] = { obj, msgSender, v8::String::New (to.toString().c_str()) };
             ProtectedJSCallback(mContext->mContext, &mEventHandlers[s]->target, mEventHandlers[s]->cb, argc, argv);
 
             matchesSomeHandler = true;

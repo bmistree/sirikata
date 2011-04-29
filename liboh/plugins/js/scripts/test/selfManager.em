@@ -124,17 +124,16 @@ std.sysExtender = system.Class.extend(
         },
 
         //registerHandlers
-        registerHandler : function (arg1,arg2,callback)
+        registerHandler : function (callback,arg2,arg3,arg4)
         {
             var wrappedCallback = this.__wrapRegHandler(callback);
-            this._curSys.registerHandler(arg1,arg2,wrappedCallback);
+            this._curSys.registerHandler(wrappedCallback,arg2,arg3,arg4);
         },
 
         __wrapRegHandler : function (toCallback)
         {
             var returner = function (msg,sender,receiver)
             {
-                this.addToSelfMap(receiver);
                 this.__setBehindSelf(receiver);
                 toCallback(msg,sender);
             };
@@ -145,6 +144,7 @@ std.sysExtender = system.Class.extend(
 
 
 std.sys = new std.sysExtender(system);
+
 
 
 
@@ -166,6 +166,16 @@ function toPrint2(pres)
 
 //std.sys.timeout(5,toPrint);
 
+
 std.sys.createPresence(std.sys.self.getMesh(),toPrint2);
 
+std.sys.registerHandler(test_msg_handler,null, [{"m":"random":}, {"msg":"msg":}]  ,null);
+
+function test_msg_handler(msg,sender)
+{
+    system.print("\n");
+    system.print("Got into msg handler");
+    system.print(std.sys.self.toString());
+    system.print("\n");
+}
 
