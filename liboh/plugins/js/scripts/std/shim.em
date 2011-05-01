@@ -53,17 +53,19 @@ __system.require('std/core/bind.em');
         //lkjs;
         //FIXME: should not default to presences[0], because may not exist yet.
         this.__behindSelf = baseSystem;
-        this.__setBehindSelf = function(toSetTo)
-        {
-            this.__behindSelf = toSetTo;   
-        };
+
+
+          this.__setBehindSelf = function(toSetTo)
+          {
+              this.__behindSelf = toSetTo;
+          };
         
-        this.__defineGetter__("self", function(){
-                                  return this.__behindSelf;
-                              });
+          this.__defineGetter__("self", function(){
+                                    return this.__behindSelf;
+                                });
         
-        this.__defineSetter__("self", function(val){
-                              });            
+          this.__defineSetter__("self", function(val){
+                                });            
 
 
         //rest of functions
@@ -161,7 +163,7 @@ __system.require('std/core/bind.em');
         {
             var returner = function (msg,sender,receiver)
             {
-                this.__setBehindSelf(receiver);
+                this.__setBehindSelf(this._selfMap[receiver]);
                 toCallback(msg,sender);
             };
             return std.core.bind(returner,this);
@@ -386,7 +388,7 @@ __system.require('std/core/bind.em');
          */        
         this.onPresenceConnected = function(/**Function */callback)
         {
-            baseSystem.onPresenceConnected.apply(baseSystem,arguments);
+            baseSystem.onPresenceConnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
         };
 
                 
@@ -397,7 +399,7 @@ __system.require('std/core/bind.em');
          */
         this.onPresenceDisconnected = function (/**Function*/callback)
         {
-            baseSystem.onPresenceDisconnected.apply(baseSystem,arguments);
+            baseSystem.onPresenceDisconnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
         };
 
         //not exposing
