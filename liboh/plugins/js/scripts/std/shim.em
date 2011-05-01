@@ -268,7 +268,7 @@ __system.require('std/core/bind.em');
         /** @deprecated Use createSandbox */
         this.create_context = function()
         {
-            return this.createSandbox(arguments);//baseSystem.create_context.apply(baseSystem, arguments);
+            return this.createSandbox.apply(this,arguments);//baseSystem.create_context.apply(baseSystem, arguments);
         };
 
         
@@ -301,7 +301,7 @@ __system.require('std/core/bind.em');
         /** @deprecated Use createPresence */
         this.create_presence = function()
         {
-            return this.createPresence(arguments);//baseSystem.creeatePresence.apply(baseSystem, arguments);
+            return this.createPresence.apply(this,arguments);
         };
 
         /** @function 
@@ -320,7 +320,7 @@ __system.require('std/core/bind.em');
         this.createPresence = function (/** String */mesh, /** Function */ callback)
         {
             //must be this way.
-            baseSystem.create_presence.apply(baseSystem,[mesh,this.__wrapPresConnCB(callback)]);
+            baseSystem.create_presence.apply(baseSystem,arguments);
         };
 
 
@@ -328,7 +328,7 @@ __system.require('std/core/bind.em');
         /** @deprecated  Use createEntity */
         this.create_entity = function()
         {
-            return this.createEntity(arguments);//baseSystem.create_entity.apply(baseSystem, arguments);
+            return this.createEntity.apply(this,arguments);//baseSystem.create_entity.apply(baseSystem, arguments);
         };
         
         /** @function 
@@ -346,7 +346,7 @@ __system.require('std/core/bind.em');
          */
         this.createEntity = function(/** util.Vec3 */ position, /** String */ scriptOption, /** String */ initFile, /** String */ mesh, /** Number */ scale, /** Number */ solidAngle)
         {
-            return baseSystem.createEntity.apply(baseSystem, [position,scriptOption,initFile,mesh,scale,solidAngle]);
+            return baseSystem.create_entity.apply(baseSystem, arguments);
         };
         
         /** @function 
@@ -386,7 +386,7 @@ __system.require('std/core/bind.em');
          */        
         this.onPresenceConnected = function(/**Function */callback)
         {
-            baseSystem.onPresenceConnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
+            baseSystem.onPresenceConnected.apply(baseSystem,arguments);
         };
 
                 
@@ -397,7 +397,7 @@ __system.require('std/core/bind.em');
          */
         this.onPresenceDisconnected = function (/**Function*/callback)
         {
-            baseSystem.onPresenceDisconnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
+            baseSystem.onPresenceDisconnected.apply(baseSystem,arguments);
         };
 
         //not exposing
@@ -465,7 +465,7 @@ __system.require('std/core/bind.em');
          */
         this.set_script = function()
         {
-            this.setScript(arguments);
+            this.setScript.apply(this,arguments);
         };
     
         /** @function 
