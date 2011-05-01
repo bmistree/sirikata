@@ -319,8 +319,8 @@ __system.require('std/core/bind.em');
          */
         this.createPresence = function (/** String */mesh, /** Function */ callback)
         {
-            //baseSystem.create_presence(mesh,this.__wrapPresConnCB(callback));
-            baseSystem.create_presence.apply(baseSystem,mesh,this.__wrapPresConnCB(callback));
+            //must be this way.
+            baseSystem.create_presence.apply(baseSystem,[mesh,this.__wrapPresConnCB(callback)]);
         };
 
 
@@ -346,7 +346,7 @@ __system.require('std/core/bind.em');
          */
         this.createEntity = function(/** util.Vec3 */ position, /** String */ scriptOption, /** String */ initFile, /** String */ mesh, /** Number */ scale, /** Number */ solidAngle)
         {
-            return baseSystem.createEntity.apply(baseSystem, arguments);
+            return baseSystem.createEntity.apply(baseSystem, [position,scriptOption,initFile,mesh,scale,solidAngle]);
         };
         
         /** @function 
@@ -386,8 +386,7 @@ __system.require('std/core/bind.em');
          */        
         this.onPresenceConnected = function(/**Function */callback)
         {
-            //baseSystem.onPresenceConnected.apply(baseSystem,this.__wrapPresConnCB(callback));
-            baseSystem.onPresenceConnected(this.__wrapPresConnCB(callback));
+            baseSystem.onPresenceConnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
         };
 
                 
@@ -398,7 +397,7 @@ __system.require('std/core/bind.em');
          */
         this.onPresenceDisconnected = function (/**Function*/callback)
         {
-            baseSystem.onPresenceDisconnected.apply(baseSystem,this.__wrapPresConnCB(callback));
+            baseSystem.onPresenceDisconnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
         };
 
         //not exposing
