@@ -322,7 +322,10 @@ __system.require('std/core/bind.em');
         this.createPresence = function (/** String */mesh, /** Function */ callback)
         {
             //must be this way.
-            baseSystem.create_presence.apply(baseSystem,arguments);
+            //baseSystem.create_presence.apply(baseSystem,arguments);
+            //baseSystem.create_presence(mesh,callback);
+            //baseSystem.create_presence.apply(baseSystem,[mesh,this.__wrapPresConnCB(callback)]);
+            baseSystem.create_presence(mesh,this.__wrapPresConnCB(callback));
         };
 
 
@@ -388,7 +391,8 @@ __system.require('std/core/bind.em');
          */        
         this.onPresenceConnected = function(/**Function */callback)
         {
-            baseSystem.onPresenceConnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
+            //baseSystem.onPresenceConnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
+            baseSystem.onPresenceConnected(this.__wrapPresConnCB(callback));
         };
 
                 
@@ -399,7 +403,8 @@ __system.require('std/core/bind.em');
          */
         this.onPresenceDisconnected = function (/**Function*/callback)
         {
-            baseSystem.onPresenceDisconnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
+            //baseSystem.onPresenceDisconnected.apply(baseSystem,[this.__wrapPresConnCB(callback)]);
+            baseSystem.onPresenceDisconnected(this.__wrapPresConnCB(callback));
         };
 
         //not exposing
