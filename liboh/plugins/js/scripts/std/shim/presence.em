@@ -63,17 +63,17 @@ function(name)
   return system.shim.graphics[this][name];
 };
 
-// system.__presence__constructor__.prototype.onProxAdded =
-// function (funcToCallback)
-// {
-//     system.__sys_onProxAdded(this,funcToCallback);
-// };
+system.__presence_constructor__.prototype.onProxAdded =
+function (funcToCallback)
+{
+    system.__sys_onProxAdded(this,funcToCallback);
+};
 
-// system.__presence__constructor__.prototype.onProxRemoved =
-// function (funcToCallback)
-// {
-//     system.__sys_onProxRemoved(this,funcToCallback);
-// };
+system.__presence_constructor__.prototype.onProxRemoved =
+function (funcToCallback)
+{
+    system.__sys_onProxRemoved(this,funcToCallback);
+};
 
 
 

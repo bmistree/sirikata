@@ -414,28 +414,29 @@ __system.require('std/core/bind.em');
             return std.core.bind(returner,this);
         };
 
-          // this.__sys_onProxAdded= function (presCalling, funcToCall)
-          // {
-          //     var wrappedCallback = this.__wrapOnProx(presCalling,funcToCall);
-          //     presCalling.__hidden_onProxAdded.apply(presCalling,wrappedCallback);
-          // };
+          
+          this.__sys_onProxAdded= function (presCalling, funcToCall)
+          {
+              var wrappedCallback = this.__wrapOnProx(presCalling,funcToCall);
+              presCalling.__hidden_onProxAdded(wrappedCallback);
+          };
 
-          // this.__sys_onProxRemoved = function (presCalling, funcToCall)
-          // {
-          //     var wrappedCallback = this.__wrapOnProx(presCalling,funcToCall);
-          //     presCalling.__hidden_onProxRemoved.apply(presCalling,wrappedCallback);
-          // },
+          this.__sys_onProxRemoved = function (presCalling, funcToCall)
+          {
+              var wrappedCallback = this.__wrapOnProx(presCalling,funcToCall);
+              presCalling.__hidden_onProxRemoved(wrappedCallback);
+          };
         
-          // this.__wrapOnProx = function (presCalling,funcToCall)
-          // {
-          //     var returner = function(newVis)
-          //     {
-          //         this.__setBehindSelf(presCalling);
-          //         funcToCall(newVis);
-          //     };
+          this.__wrapOnProx = function (presCalling,funcToCall)
+          {
+              var returner = function(newVis)
+              {
+                  this.__setBehindSelf(presCalling);
+                  funcToCall(newVis);
+              };
               
-          //     return std.core.bind(returner,this);
-          // };
+              return std.core.bind(returner,this);
+          };
 
 
         
