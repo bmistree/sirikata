@@ -319,6 +319,7 @@ __system.require('std/core/bind.em');
          */
         this.createPresence = function (/** String */mesh, /** Function */ callback)
         {
+            //baseSystem.create_presence(mesh,this.__wrapPresConnCB(callback));
             baseSystem.create_presence.apply(baseSystem,mesh,this.__wrapPresConnCB(callback));
         };
 
@@ -385,7 +386,6 @@ __system.require('std/core/bind.em');
          */        
         this.onPresenceConnected = function(/**Function */callback)
         {
-            //lkjs;
             //baseSystem.onPresenceConnected.apply(baseSystem,this.__wrapPresConnCB(callback));
             baseSystem.onPresenceConnected(this.__wrapPresConnCB(callback));
         };
