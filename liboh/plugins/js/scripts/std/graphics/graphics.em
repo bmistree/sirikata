@@ -40,6 +40,15 @@ function() {
 
     var ns = std.graphics;
 
+    var wrapGraphCB = function(func)
+    {
+        var returner = function()
+        {
+            func(this);
+        };
+        return returner;
+    };
+    
     /** @namespace
      * The Graphics class wraps the underlying graphics simulation,
      *  allowing you to get access to input, control display options,
@@ -52,9 +61,24 @@ function() {
         this.presence = pres;
         this._simulator = pres.runSimulation(name);
         this.inputHandler = new std.graphics.InputHandler(this);
-        this._setOnReady(cb);
+        this.readyCB  = cb;
     };
 
+    std.graphics.Graphics.prototype.initialize =function()
+    {
+        
+        if (this._isReady())
+        {
+            system.print('\n\nDEBUG: it is already ready.\n\n');
+            //this._reloadDefault();
+            this.readyCB(this);                
+        }
+        else
+            this._setOnReady(this.readyCB);                        
+
+    };
+    
+    
     std.graphics.Graphics.prototype.invoke = function() {
         // Just forward manual invoke commands directly
         return this._simulator.invoke.apply(this._simulator, arguments);
@@ -62,9 +86,20 @@ function() {
 
     /** Set the callback to invoke when the system is ready for rendering. */
     std.graphics.Graphics.prototype._setOnReady = function(cb) {
+        system.print('\n\nDEBUG: hit onReady\n\n');
         this.invoke('onReady', std.core.bind(cb, undefined, this));
     };
 
+    std.graphics.Graphics.prototype._isReady = function()
+    {
+        return this.invoke('isReady');
+    };
+
+    std.graphics.Graphics.prototype._reloadDefault = function()
+    {
+        return this.invoke('reloadDefault');
+    };
+    
     /** Request that the renderer suspend rendering. It continues to exist, but doesn't use any CPU on rendering. */
     std.graphics.Graphics.prototype.suspend = function() {
         this.invoke('suspend');

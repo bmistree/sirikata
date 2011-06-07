@@ -50,6 +50,7 @@ function() {
      *   handler.onButtonPressed = function() { .... }
      */
     std.graphics.InputHandler = function(sim) {
+        
         sim.invoke("setInputHandler", std.core.bind(this._handle, this) );
         this._mapping = {
             'button-pressed': 'onButtonPressed',
@@ -69,9 +70,14 @@ function() {
     };
 
     std.graphics.InputHandler.prototype._handle = function(evt) {
-        if (evt.msg in this._mapping) {
+        if (evt.msg in this._mapping)
+        {
             var cb = this[ this._mapping[evt.msg] ];
-            if (cb) cb(evt);
+            if (cb)
+            {
+                cb(evt);                    
+            }
+
         }
         if (this.onAnything) this.onAnything(evt);
     };

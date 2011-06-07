@@ -229,7 +229,6 @@ bool JSContextStruct::canReceiveMessagesFor(const SpaceObjectReference& receiver
     if (hasPresence(receiver))
         return true;
 
-
     //cannot receive messages for this.
     return false;
 }
@@ -350,6 +349,7 @@ v8::Handle<v8::Value> JSContextStruct::struct_rootReset()
 
     //re-exec mScript
     v8::ScriptOrigin origin(v8::String::New("(reset_script)"));
+    JSLOG(debug, "resetting script with initial script of "<<mScript);
     jsObjScript->internalEval(mContext,mScript,&origin , true);
 
 

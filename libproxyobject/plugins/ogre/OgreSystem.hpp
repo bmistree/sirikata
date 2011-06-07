@@ -228,11 +228,16 @@ public:
     boost::any getCamera(std::vector<boost::any>& params);
     boost::any setCameraMode(std::vector<boost::any>& params);
     boost::any setCameraOffset(std::vector<boost::any>& params);
-
-
+    boost::any isReady();
+    boost::any reloadDefault();
+    
     ~OgreSystem();
 
 private:
+    bool mReady;
+
+    //readyName to bool
+    std::map<String,bool> mLoadedModules;
     ResourceDownloadPlanner *dlPlanner;
     void instantiateAllObjects(ProxyManagerPtr pop);
 };

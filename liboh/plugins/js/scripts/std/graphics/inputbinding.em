@@ -91,6 +91,8 @@
               *  Add an input binding for trigger, causing the action named by act to be invoked.
               */
              addBinding: function(trigger, act) {
+
+                 
                  trigger = {
                      type : trigger[0],
                      key : trigger[1],

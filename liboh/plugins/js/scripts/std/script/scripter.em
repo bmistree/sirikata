@@ -49,15 +49,20 @@ function() {
         this._scriptedObjects = {};
 
 	try {
+            system.print('\n\nDEBUG: got into scripter try.  \n\n');
+            
             this._parent._simulator.addGUIModule(
                 "Scripter", "scripting/prompt.js",
                 std.core.bind(function(scripting_gui) {
-                    scripting_gui.bind("event", std.core.bind(this._handleScriptEvent, this));
-                    scripting_gui.onException( function(msg, file, line) { system.print('Scripting GUI Exception: ' + msg + ' at ' + file + ':' + line); } );
-                    this._scriptingWindow = scripting_gui;
-                    //this._scriptingWindow.hide();
+                                  system.print('\n\n\nDEBUG: GOT A SCRIPTING CALLBACK\n\n');                                 
+                                  scripting_gui.bind("event", std.core.bind(this._handleScriptEvent, this));
+                                  scripting_gui.onException( function(msg, file, line) { system.print('Scripting GUI Exception: ' + msg + ' at ' + file + ':' + line); } );
+                                  this._scriptingWindow = scripting_gui;
+
+                                  
                 }, this));
         } catch (ex) {
+            system.print('\n\nDEBUG: got into scripter catch.  \n\n');
 	    system.print(ex);
         }
         // Listen for replies
@@ -75,6 +80,8 @@ function() {
         if (!target) return;
 
         this._parent.invoke("initScript", target);
+
+        
         this._scriptingWindow.call('Scripter.addObject', target.toString());
         //this._scriptingWindow.show();
         system.timeout(.1, std.core.bind(this._scriptingWindow.focus, this._scriptingWindow));
@@ -102,7 +109,7 @@ function() {
 
     ns.Scripter.prototype._handleScriptReply = function(msg, sender) {
         var win = this._scriptingWindow;
-
+        
         if (msg.value !== undefined)
             win.call('Scripter.addMessage', sender.toString(), std.core.pretty(msg.value));
         if (msg.exception !== undefined)
@@ -111,7 +118,7 @@ function() {
 
     ns.Scripter.prototype._handlePrint = function(msg, sender) {
         var win = this._scriptingWindow;
-
+        
         if (msg.print) {
             var to_print = msg.print;
             win.call('Scripter.addMessage', sender.toString(), std.core.pretty(to_print));

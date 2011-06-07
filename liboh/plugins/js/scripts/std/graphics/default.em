@@ -55,8 +55,14 @@ function() {
     std.graphics.DefaultGraphics = function(pres, name) {
         this._pres = pres;
         this._simulator = new std.graphics.Graphics(pres, name, std.core.bind(this.finishInit, this));
+        this._simulator.initialize();
     };
+
+    
     std.graphics.DefaultGraphics.prototype.finishInit = function(gfx) {
+
+        system.print('\n\nDEBUG: got into finishInit\n\n');
+        
         // assert(gfx == this._simulator);
         this._cameraMode = 'first';
 
@@ -166,6 +172,7 @@ function() {
             { key: ['mouse-release', 1, '*'], action: 'stopDrag' }
         ];
 
+        system.print('\n\nDEBUG: adding bindings\n\n');
         this._binding.addBindings(bindings);
     };
 
@@ -237,6 +244,7 @@ function() {
 
     /** @function */
     std.graphics.DefaultGraphics.prototype.pickObject = function(x, y) {
+        
         if (this._selected) {
             this._simulator.bbox(this._selected, false);
             this._selected = null;

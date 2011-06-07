@@ -72,6 +72,24 @@ sirikata.log = function() {
     sirikata.event.apply(this, ['__log'].concat(args));
 };
 
+
+sirikata.readies = {
+    allReadies : {},
+    registerReady : function(name,uiExec)
+    {
+        sirikata.readies.allReadies[name] = uiExec;
+    },
+    triggerReady : function(name)
+    {
+        sirikata.log('error', '\nDEBUG: calling triggerReady on ', name,'\n');
+        if (name in sirikata.readies.allReadies)
+            sirikata.readies.allReadies[name]();
+        else
+            sirikata.log('error', 'attempting to trigger a ready that does not exist for ', name);
+    }
+};
+
+
 /** A wrapper for UI code which sets up the environment for
  * isolation. You should generally execute all your UI code through
  * this, e.g. your UI script should look like this:
@@ -81,8 +99,9 @@ sirikata.log = function() {
  *   });
  */
 sirikata.ui = function(name, ui_code) {
-    $(document).ready(
-        function() {
+
+    var toExecOnReady = function()
+    {
             var sirikata = {};
             for(var i in __sirikata) { sirikata[i] = __sirikata[i]; }
             sirikata.event = function() {
@@ -92,7 +111,14 @@ sirikata.ui = function(name, ui_code) {
             };
             eval('(' + ui_code.toString() + ')()');
             sirikata.event('__ready'); // really name-__ready
-        }
+
+        sirikata.log('error', '\nDEBUG: calling toExecOnReady for ', name, '\n\n');
+        
+        };
+    sirikata.readies.registerReady(name,toExecOnReady);
+    
+    $(document).ready(
+        toExecOnReady
     );
 };
 
@@ -197,3 +223,5 @@ sirikata.ui.window.prototype.disable = function() {
 sirikata.ui.button = function(selector) {
     return $(selector);
 };
+
+

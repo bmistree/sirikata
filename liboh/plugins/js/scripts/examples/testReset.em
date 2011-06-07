@@ -32,6 +32,7 @@ var repTimer = new std.core.RepeatingTimer(1,timerCallback);
 //them because you're clearing away all code associated
 //with the entity.
 //Last line just prints "Reset!" when done.
+//system.set_script("system.import('std/default.em'); system.print('Reset!'); ");
 system.set_script("system.import('std/default.em'); system.print('Reset!'); ");
 
 

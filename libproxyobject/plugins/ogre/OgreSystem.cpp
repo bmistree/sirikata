@@ -63,7 +63,8 @@ OgreSystem::OgreSystem(Context* ctx)
  : OgreRenderer(ctx),
    mPrimaryCamera(NULL),
    mOverlayCamera(NULL),
-   mOnReadyCallback(NULL)
+   mOnReadyCallback(NULL),
+   mReady(false)
 {
     increfcount();
     mCubeMap=NULL;
@@ -178,7 +179,9 @@ bool OgreSystem::initialize(VWObjectPtr viewer, const SpaceObjectReference& pres
     return true;
 }
 
-void OgreSystem::handleUIReady() {
+void OgreSystem::handleUIReady()
+{
+    mReady = true;
     // Currently the only blocker for being ready is that the UI loaded. If we
     // end up with more, we may need to make this just set a flag and then check
     // if all conditions are met.
@@ -495,12 +498,16 @@ boost::any OgreSystem::invoke(vector<boost::any>& params)
         return setOnReady(params);
     if(name == "createWindow")
         return createWindow(params);
+    else if (name == "isReady")
+        return isReady();
     else if(name == "createWindowFile")
         return createWindowFile(params);
     else if(name == "addModuleToUI")
         return addModuleToUI(params);
     else if(name == "createWindowHTML")
         return createWindowHTML(params);
+    else if (name == "reloadDefault")
+        return reloadDefault();
     else if(name == "setInputHandler")
         return setInputHandler(params);
     else if(name == "quit")
@@ -538,8 +545,16 @@ boost::any OgreSystem::setOnReady(std::vector<boost::any>& params) {
 
     Invokable* handler = Invokable::anyAsInvokable(params[1]);
     mOnReadyCallback = handler;
+
+    
     return boost::any();
 }
+
+boost::any OgreSystem::isReady()
+{
+    return boost::any_cast<bool>(mReady);
+}
+
 
 boost::any OgreSystem::createWindow(const String& window_name, bool is_html, bool is_file, String content, uint32 width, uint32 height) {
     WebViewManager* wvManager = WebViewManager::getSingletonPtr();
@@ -589,13 +604,28 @@ boost::any OgreSystem::addModuleToUI(std::vector<boost::any>& params) {
 
     String window_name = anyAsString(params[1]);
     String html_url = anyAsString(params[2]);
-
+            
     if (!mMouseHandler) return boost::any();
 
+    std::map<String,bool>::iterator moduleFinder = mLoadedModules.find(window_name);
     // Note the ../, this is because that loadModule executes from within data/chrome
-    mMouseHandler->mUIWidgetView->evaluateJS("loadModule('../" + html_url + "')");
+    if (moduleFinder !=  mLoadedModules.end())
+    {
+        std::cout<<"\n\nDEBUG: this is the window triggering from: "<<window_name<<"\n\n";
+        mMouseHandler->mUIWidgetView->evaluateJS("triggerReady('" + window_name + "')");
+    }
+    else
+        mMouseHandler->mUIWidgetView->evaluateJS("loadModule('../" + html_url + "')");
+    
     Invokable* inn = mMouseHandler->mUIWidgetView;
+    mLoadedModules[window_name] = true;
     return Invokable::asAny(inn);
+}
+
+boost::any OgreSystem::reloadDefault()
+{
+    mMouseHandler->mUIWidgetView->loadFile("chrome/ui.html");
+    return boost::any();
 }
 
 boost::any OgreSystem::createWindowHTML(vector<boost::any>& params) {
@@ -612,11 +642,15 @@ boost::any OgreSystem::createWindowHTML(vector<boost::any>& params) {
 }
 
 boost::any OgreSystem::setInputHandler(vector<boost::any>& params) {
+    std::cout<<"\n\nDEBUG: setting input handler\n\n";
+    
     if (params.size() < 2) return boost::any();
     if (!Invokable::anyIsInvokable(params[1])) return boost::any();
 
     Invokable* handler = Invokable::anyAsInvokable(params[1]);
     mMouseHandler->setDelegate(handler);
+
+    std::cout<<"\n\nDEBUG: setting input handler end.\n\n";
     return boost::any();
 }
 

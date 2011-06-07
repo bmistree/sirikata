@@ -257,6 +257,7 @@ EventResponse OgreSystemMouseHandler::axisHandler(EventPtr ev) {
 }
 
 EventResponse OgreSystemMouseHandler::textInputHandler(EventPtr ev) {
+
     std::tr1::shared_ptr<TextInputEvent> textev (
         std::tr1::dynamic_pointer_cast<TextInputEvent>(ev));
     if (!textev)
@@ -343,6 +344,7 @@ EventResponse OgreSystemMouseHandler::mouseReleasedHandler(EventPtr ev) {
 }
 
 EventResponse OgreSystemMouseHandler::mouseClickHandler(EventPtr ev) {
+
     std::tr1::shared_ptr<MouseClickEvent> mouseev (
         std::tr1::dynamic_pointer_cast<MouseClickEvent>(ev));
     if (!mouseev)
