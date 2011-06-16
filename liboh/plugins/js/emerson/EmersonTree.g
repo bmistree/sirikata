@@ -28,26 +28,24 @@ options
     #define APP(s)  program_string->append(program_string, s);
 
     
-    // #define CHECK_RESOURCES()               \
-    // {                                       \
-    // APP("(function()\n");                   \
-    // APP("{ \n");                            \
-    // APP("var tmp = function()\n");          \
-    // APP("{\n");                             \
-    // APP("return this;");                    \
-    // APP("};");                              \
-    // APP("var tmpGlobal = tmp();");          \
-    // APP("if (! tmpGlobal.__checkResources8_8_3_1__())"); \
-    // APP("throw '__resource_error__';");     \
-    // APP("})();");                           \
-    // }
+    #define CHECK_RESOURCES_FUNC_NAME "__checkResources8_8_3_1__"
 
-    #define CHECK_RESOURCES()                 \
-    {                                         \
-    APP("\nif ( ! __checkResources8_8_3_1__() )\n");  \
-    APP("{ \nthrow '__resource_error__'; \n}\n");   \
+    #define CHECK_RESOURCE_FUNC_OVERWRITE(toCheck)          \
+    {                                                       \
+        if (strcmp(toCheck,CHECK_RESOURCES_FUNC_NAME) == 0) \
+             return "user__" CHECK_RESOURCES_FUNC_NAME;     \
+        return toCheck;                                     \
     }
 
+    
+
+    
+    #define CHECK_RESOURCES()                 \
+    {                                         \
+    APP("\nif ( ! " CHECK_RESOURCES_FUNC_NAME "() )\n");  \
+    APP("{ \nthrow '__resource_error__'; \n}\n");   \
+    }
+    
 
     #define CHECK_KILL()\
     { \
@@ -98,7 +96,8 @@ sourceElement
     : functionDeclaration
     | statement{ APP(";"); }
     ;
-	
+
+    
 // functions
 functionDeclaration
 	: ^( FUNC_DECL
@@ -107,8 +106,8 @@ functionDeclaration
               }
               Identifier
               {
-                APP((const char*)$Identifier.text->chars);
-                APP("( ");
+                   APP(CHECK_RESOURCE_FUNC_OVERWRITE((const char*)$Identifier.text->chars));
+                   APP("( ");
               } 
               (formalParameterList)?
               {
@@ -134,7 +133,7 @@ functionExpression
              (			
                Identifier
                  {
-                   APP((const char*)$Identifier.text->chars);
+                   APP(CHECK_RESOURCE_FUNC_OVERWRITE((const char*)$Identifier.text->chars));
                  }
              )? 
              {
@@ -159,7 +158,6 @@ functionExpression
 formalParameterList
   : ^(FUNC_PARAMS
                 (id1=Identifier {APP((const char*)$id1.text->chars); })
-                
 	       (
                  {
                    APP(", ");
