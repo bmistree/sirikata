@@ -12,8 +12,7 @@ namespace JS{
 class EmersonScript;
 
 
-
-struct JSProxyData
+struct JSProxyData : public SelfWeakPtr<JSProxyData>
 {
     JSProxyData(EmersonScript* eScript)
      : emerScript(eScript)
@@ -39,7 +38,9 @@ struct JSProxyData
        mPhysics(from->mPhysics)
     {}
     
-
+    ~JSProxyData()
+    {}
+    
     EmersonScript*                  emerScript;
     SpaceObjectReference      sporefToListenTo;
     TimedMotionVector3f              mLocation;
@@ -48,6 +49,10 @@ struct JSProxyData
     String                               mMesh;
     String                            mPhysics;
 };
+
+typedef std::tr1::weak_ptr<JSProxyData>   JSProxyWPtr;
+typedef std::tr1::shared_ptr<JSProxyData> JSProxyPtr;
+
 
 
 class JSVisibleManager : public ProxyCreationListener
@@ -119,7 +124,7 @@ private:
     
     EmersonScript* emerScript;
     
-    typedef std::map<SpaceObjectReference,JSProxyData* > SporefProxyMap;
+    typedef std::map<SpaceObjectReference,JSProxyWPtr > SporefProxyMap;
     typedef SporefProxyMap::iterator SporefProxyMapIter;
     SporefProxyMap mProxies;
     
