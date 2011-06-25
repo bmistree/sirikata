@@ -451,6 +451,9 @@ void EmersonScript::killScript()
 
 void EmersonScript::onConnected(SessionEventProviderPtr from, const SpaceObjectReference& name, HostedObject::PresenceToken token)
 {
+    //register underlying visible manager to listen for proxy creation events on hostedobjectproxymanager
+    mParent->getProxyManager(name.space(),name.object())->addListener(this);
+    
     //register for scripting messages from user
     SpaceID space_id = name.space();
     ObjectReference obj_refer = name.object();
@@ -512,7 +515,9 @@ void EmersonScript::requestDisconnect(JSPresenceStruct* jspres)
 void EmersonScript::onDisconnected(SessionEventProviderPtr from, const SpaceObjectReference& name)
 {
     JSPresenceStruct* jspres = findPresence(name);
-
+    //deregister underlying visible manager from listen for proxy creation events on hostedobjectproxymanager
+    mParent->getProxyManager(name.space(),name.object())->removeListener(this);
+    
     if (jspres != NULL)
         jspres->disconnectCalledFromObjScript();
 }

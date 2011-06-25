@@ -1,5 +1,5 @@
-#ifndef __JS_VISIBLE_STRUCT_MONITOR_HPP__
-#define __JS_VISIBLE_STRUCT_MONITOR_HPP__
+#ifndef __JS_VISIBLE_MANAGER_HPP__
+#define __JS_VISIBLE_MANAGER_HPP__
 
 #include "JSObjectStructs/JSVisibleStruct.hpp"
 #include <map>
@@ -10,119 +10,149 @@ namespace Sirikata{
 namespace JS{
 
 class EmersonScript;
-class JSVisibleStruct;
-class VisAddParams;
 
-//lkjs;
-//FIXME
-//There is an error.  here.  visible sturct monitor needs to also be informed when a presence connects to the world that had been disconnected so that it can then register as position and mesh listeners;
 
-class JSVisibleStructMonitor
+
+struct JSProxyData
+{
+    JSProxyData(EmersonScript* eScript)
+     : emerScript(eScript)
+    {}
+
+    JSProxyData(EmersonScript* eScript,const SpaceObjectReference& _sporefToListenTo,const TimedMotionVector3f& _mLocation,const TimedMotionQuaternion& _mOrientation, const BoundingSphere3f& _mBounds,const String& mMesh, const String& _mPhysics)
+     : emerScript(eScript),
+       sporefToListenTo(_sporefToListenTo),
+       mLocation(_mLocation),
+       mOrientation(_mOrientation),
+       mBounds(_mBounds),
+       mMesh(_mMesh),
+       mPhysics(_mPhysics)
+    {}
+
+    JSProxyData(EmersonScript* eScript,JSProxyData* from)
+     : emerScript(eScript),
+       sporefToListenTo(from->sporefToListenTo),
+       mLocation(from->mLocation),
+       mOrientation(from->mOrientation),
+       mBounds(from->mBounds),
+       mMesh(from->mMesh),
+       mPhysics(from->mPhysics)
+    {}
+    
+
+    EmersonScript*                  emerScript;
+    SpaceObjectReference      sporefToListenTo;
+    TimedMotionVector3f              mLocation;
+    TimedMotionQuaternion         mOrientation;
+    BoundingSphere3f                   mBounds;
+    String                               mMesh;
+    String                            mPhysics;
+};
+
+
+class JSVisibleManager : public ProxyCreationListener
+                         public PositionListener,
+                         public MeshListener
 {
 public:
     
-    //constructor requires zero args
-    JSVisibleStructMonitor();
-    ~JSVisibleStructMonitor();
 
-
-    //can only create jsvisiblestructs through visiblestruct monitor
-    //if the visible struct you want to create already exists (whatsVisible and
-    //toWhom match up with existing jsvisiblestructs in listenFromNoneMap or
-    //mObjectsToFollow, then returns that visible struct.  Otherwise, creates
-    //new one.
-    //If there is no associated local presence that his monitoring the presence,
-    //then toWhom should be SpaceObjectReference::null();
-    //note: when creating a visible struct that is associated with a presence,
-    //you should provide the same sporef for both whatsVisible and toWhom.
-    JSVisibleStruct* createVisStruct(EmersonScript* jsobjscript, const SpaceObjectReference& whatsVisible, const SpaceObjectReference& visibleTo, VisAddParams* addParams);
+    JSVisibleManager(EmersonScript* eScript);
+    ~JSVisibleManager();
 
     
-    //Returns null if do not have a visible struct that has sporefVisible and
-    //sporefVisibleFrom associated with them.  Otherwise, returns the
-    //visiblestruct.  Note, when looking for a visible struct associated with a 
-    //presence, you should provide the presence's sporef for both sporefVisible
-    //and sporefVisibleFrom
-    JSVisibleStruct* checkVisStructExists(const SpaceObjectReference& sporefVisible, const SpaceObjectReference& sporefVisibleFrom);
+    /**
+       If we already have a visible struct associated with the sporef
+       whatsVisible, then just returns it.  Otherwise, attempts to create a new
+       one.
+     */
+    JSProxyData* getOrCreateVisStruct(const SpaceObjectreference& whatsVisible,JSProxyData* addParams);
 
-    JSVisibleStruct* checkVisStructExists(const SpaceObjectReference& sporefVisible);
 
-    //when pinto tells me that an object with sporef sporefVisible is now within
-    //the query of presence with sporefVisibleTo, this function should get
-    //called to pass along the notification.
-    void checkNotifyNowVis(const SpaceObjectReference& sporefVisible, const SpaceObjectReference& sporefVisibleTo);
+    /**
+       If a new proxy object is available and its sporef is in mProxies, update
+       mProxies and with the new proxies fields and set JSVisibleManager as a
+       listener for it.
+     */
+    virtual void onCreateProxy(ProxyObjectPtr p);
 
-    //when pinto tells me that an object with sporef sporefVisible is now *not* within
-    //the query of presence with sporefVisibleTo, this function should get
-    //called to pass along the notification.
-    void checkNotifyNowNotVis(const SpaceObjectReference& sporefVisible, const SpaceObjectReference& sporefVisibleTo);
-
-    
-    void deRegisterVisibleStruct(JSVisibleStruct* jsvis);
-
-    
-    void checkForwardUpdate(const SpaceObjectReference& sporefVisible, const TimedMotionVector3f& tmv, const TimedMotionQuaternion& tmq,const BoundingSphere3f& newBounds);    
-    void checkForwardUpdateMesh(const SpaceObjectReference& sporefVisible,ProxyObjectPtr proxptr,Transfer::URI const& newMesh);
+    /**
+       If sporef of p exists in mProxies, then at some point, we must have
+       registered JSVisibleManager as a position and mesh listener for p.
+       De-register JSVisibleManager on destruction.
+     */
+    virtual void onDestroyProxy(ProxyObjectPtr p);
     
     
+    virtual void updateLocation (const TimedMotionVector3f &newLocation, const TimedMotionQuaternion& newOrient, const BoundingSphere3f& newBounds,const SpaceObjectReference& sporef);
+    virtual void onSetMesh (ProxyObjectPtr proxy, Transfer::URI const& newMesh,const SpaceObjectReference& sporef);
+    virtual void onSetScale (ProxyObjectPtr proxy, float32 newScale ,const SpaceObjectReference& sporef);
+    virtual void onSetPhysics (ProxyObjectPtr proxy, const String& newphy,const SpaceObjectReference& sporef);
+
 private:
 
-
-    void checkNotifyNowNotVis_noVisFrom(const SpaceObjectReference& sporefVisible);
-
-    //helper functions for createVisStruct.
-    JSVisibleStruct* createVisStructFromNone(EmersonScript* emerscript, const SpaceObjectReference& whatsVisible);
-    JSVisibleStruct* createVisStructFromHaveListeners(EmersonScript* emerscript,const SpaceObjectReference& whatsVisible, const SpaceObjectReference& toWhom, VisAddParams* addParams);
+    /**
+       Creates a new visible struct with sporef whatsVisible and loads it into
+       mProxies.  First checks if hosted object has any proxy objects with given
+       sporef, if not, then tries to load from addParams.  If addParams is null,
+       then just creates a blank proxy data object with whatsVisible as its sporef.
+     */
+    JSProxyData* createVisStruct(const SpaceObjectReference& whatsVisible, JSProxyData* addParams);
     
+    /**
+       Runs through all the presences on this entity.  For each presence, checks
+       if have a proxy object associated with sporef.  Return the proxy object
+       with the most up to date position update.
+    */
+    ProxyObjectPtr getMostUpToDate(const SpaceObjectReference& sporef);
 
-    //helper functions for deRegisterVisibleStruct function
-    void deRegisterVisibleStructFromNoneMap(JSVisibleStruct* jsvis);
-    void deRegisterVisibleStructFromObjectsMap(JSVisibleStruct* jsvis);
-
-    //helper functions for checkVisStructExists.  Checks if visibleStruct
-    //associated with sporefVisible and sporefVisibleFrom exist already in
-    //listenFromNoneMap and mObjectsToFollow, respectively.
-    //checks if visible struct watching sporefVisible exists in listenFromNoneMap
-    JSVisibleStruct* checkNoListenFrom(const SpaceObjectReference& sporefVisible);
-    JSVisibleStruct* checkListenFromVisStructs(const SpaceObjectReference& sporefVisible, const SpaceObjectReference& sporefVisibleFrom);
-
-    //returns a visible struct from mObjectsToFollow that is watching an object
-    //with sporef sporefVisible, and that has its stillVisible flag as true.
-    //If no such object exists, returns null
-    JSVisibleStruct* checkWatchingWithFrom(const SpaceObjectReference& sporefVisible);
-
-    //looks through mObjectsToFollow for a jsvisiblestruct that is watching
-    //whatsvisible and is still visible itself.  if find one, request it to
-    //perform an update on arg jsvis.
-    void updateForFromNone(JSVisibleStruct* jsvis,const SpaceObjectReference& whatsVisible);
-
-    //looks through listenFromNoneMap for a visiblestruct tracking proxy
-    //associated with whatsVisible.  If find one, request jsvis to update it and
-    //notify it that it's now visible.
-    void updateFromNoneMap(JSVisibleStruct* jsvis,const SpaceObjectReference& whatsVisible);
+    /**
+       Sets JSVisibleManager.hpp as a listener for all proxy objects that have
+       sporef toSetListenersFor.
+     */
+    void setListeners(const SpaceObjectReference& toSetListenersFor);
 
     
-    typedef std::map<SpaceObjectReference, JSVisibleStruct*> SpaceToVisMap;
-    typedef SpaceToVisMap::iterator SpaceToVisMapIter;
-
-    //this map is indexed on the spaceobject reference of the object that is
-    //being watched.  It should be used to track those visible structs that were
-    //registered without having a presence actually see them.
-    SpaceToVisMap listenFromNoneMap;
     
-        
-    typedef std::map<SpaceObjectReference, SpaceToVisMap> ListenFromMap;
-    typedef ListenFromMap::iterator ListenFromMapIter;
-
-    //let's say A is visible to you through your presence B.
-    //then you would say x = mObjectsToFollow[A]
-    //and then x[B] to get the visible struct associated with
-    //that object in the world.
-    ListenFromMap mObjectsToFollow;
-
+    bool isVisible(const SpaceObjectReference& sporef);
+    v8::Handle<v8::Value> isVisibleV8(const SpaceObjectReference& sporef);
+    
+    EmersonScript* emerScript;
+    
+    typedef std::map<SpaceObjectReference,JSProxyData* > SporefProxyMap;
+    typedef SporefProxyMap::iterator SporefProxyMapIter;
+    SporefProxyMap mProxies;
+    
+    
 };
 
-}//close namespace js
-}//close namespace sirikata
+
+/**
+   @param nameProxy After calling this, nameProxy will be a JSProxyData*, with
+   the most up-to-date data associated with the sporef with name nameToMatch in mProxies.
+   @param {sporef} nameToMatch Searches mProxies for JSProxyData* with the key
+   nameToMatch.  If finds one, loads that JSProxyData into nameProxy.
+   Otherwise, creates a new one, and inserts it.
+   @param {String} errorWhere Should be the name of the function that is calling
+   this macro.  Prints logging information if receive a position update,
+   etc. for proxy objects that we didn't realize had already been created.
+ */
+#define INLINE_GET_OR_CREATE_NEW_JSPROXY_DATA(nameProxy,nameToMatch,errorWhere) \
+JSProxyData* nameProxy = NULL;\
+{\
+    SporefProxyMapIter iter = mProxies.find(nameToMatch);\
+    if (iter != mProxies.end())\
+    {\
+        JSLOG(error,"Error in " #errorWhere "of JSVisibleManager.  Should have received a createProxy call for sporef before an updateLocation.  Adding element in case.");\
+\
+        nameProxy = new JSProxyData(emerScript);\
+        mProxies[nametoMatch] = nameProxy;\
+    }\
+    else\
+        nameProxy = iter->second;\
+}
+
+} //end namespace js
+} //end namespace sirikata
 
 #endif
