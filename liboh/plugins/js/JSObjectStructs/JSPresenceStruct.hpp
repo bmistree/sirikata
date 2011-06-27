@@ -6,7 +6,7 @@
 
 #include "JSContextStruct.hpp"
 #include "JSSuspendable.hpp"
-
+#include "JSPositionListener.hpp"
 
 namespace Sirikata {
 namespace JS {
@@ -50,7 +50,7 @@ struct PresStructRestoreParams
 
 //need to forward-declare this so that can reference this inside
 class EmersonScript;
-class JSPositionListener;
+
 
 //note: only position and isConnected will actually set the flag of the watchable
 struct JSPresenceStruct : public JSPositionListener,
@@ -127,17 +127,9 @@ struct JSPresenceStruct : public JSPositionListener,
     v8::Handle<v8::Value>  toString()
     {
         v8::HandleScope handle_scope;
-        String sporefReturner = "Presence unconnected";
-        if (sporefToListenTo != NULL)
-            sporefReturner = sporefToListenTo->toString();
+        String sporefReturner = getSporef().toString();
         return v8::String::New(sporefReturner.c_str(), sporefReturner.length());
     }
-
-    SpaceObjectReference* getSporef()
-    {
-        return getToListenTo();
-    }
-
 
 private:
     uint32 mContID;

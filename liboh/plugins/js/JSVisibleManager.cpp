@@ -4,8 +4,16 @@
 #include "JSObjectStructs/JSPresenceStruct.hpp"
 #include "EmersonScript.hpp"
 
+
 namespace Sirikata{
 namespace JS{
+
+
+JSProxyData::~JSProxyData()
+{
+    emerScript->stopTrackingVis(sporefToListenTo);
+}
+
 
 
 JSVisibleManager::JSVisibleManager(EmersonScript* eScript)
@@ -17,25 +25,57 @@ JSVisibleManager::~JSVisibleManager()
 {
 }
 
-JSVisibleStruct* JSVisibleManager::getOrCreateVisStruct(const SpaceObjectReference& whatsVisible, JSProxyData* addParams)
+
+JSVisibleStruct* JSVisibleManager::createVisStruct(const SpaceObjectReference& whatsVisible)
 {
-    lkjs;
-    need to decide when to register listeners;
-    lkjs;
     
     //If already have the visible object, then just return it.
     SporefVisMapIter visIter = mVisibles.find(whatsVisible);
     if (visIter != mVisibles.end())
-        return visIter->second;
-
+        return new JSVisibleStruct(JSProxyPtr(visIter->second));
 
     //do not already have the visible object.  must create a new one.
-    return createVisStruct(whatsVisible,addParams);        
+    return new JScreateVisStruct(whatsVisible,JSProxyData());        
 }
 
 
 
-JSProxyData* JSVisibleManager::createVisStruct(const SpaceObjectReference& whatsVisible, JSProxyData* addParams)
+void JSVisibleManager::stopTrackingVis(const SpaceObjectReference& sporef)
+{
+    SporefProxyMapIter iter = mProxies.find(sporef);
+    if (iter == mProxies.end())
+    {
+        JSLOG(error, "Error in stopTrackingVis.  Requesting to stop tracking a visible that we had not previously been tracking.");
+        return;
+    }
+
+    mProxies.erase(iter);
+    removeListeners(sporef);
+}
+
+
+void JSVisibleManager::removeListeners(const SpaceObjectReference& toRemoveListenersFor)
+{
+    std::vector<SpaceObjectReference> sporefVec;
+    emerScript->mParent->getSpaceObjRefs(sporefVec);
+
+    ProxyObjectPtr returner;
+    
+    for (std::vector<SpaceObjectReference>::iterator spIter = sporefVec.begin();
+         spIter != sporefVec.end(); ++spIter)
+    {
+        ProxyObjectPtr poPtr = getProxyManager->getProxyObject(toRemoveListenersFor);
+
+        if (!poPtr)
+            continue;
+
+        poPtr->PositionProvider::removeListener(this);
+        poPtr->MeshProvider::removeListener(this);
+    }
+}
+
+
+JSProxyPtr JSVisibleManager::createProxyPtr(const SpaceObjectReference& whatsVisible, JSProxyPtr addParams)
 {
     ProxyObjectPtr ptr= getMostUpToDate(emerScript, whatsVisible);
 
@@ -43,29 +83,30 @@ JSProxyData* JSVisibleManager::createVisStruct(const SpaceObjectReference& whats
     // mProxies and returning.
     if (ptr)
     {
-        JSProxyData* jspd = new JSProxyData(emerScript,whatsVisible,ptr->getTimedMotionVector(),ptr->getTimedMotionQuaternion(),ptr->getBounds(),ptr->getMesh().toString(),ptr->getPhysics());
+        JSProxyPtr jspd (new JSProxyData(emerScript,whatsVisible,ptr->getTimedMotionVector(),ptr->getTimedMotionQuaternion(),ptr->getBounds(),ptr->getMesh().toString(),ptr->getPhysics()));
 
-        mProxies[whatsVisible] = jspd;
+        mProxies[whatsVisible] = JSProxyWPtr(jspd);
         return jspd;
     }
     
 
     //load additional data on the visible from addParams
-    if (addParams != NULL)
+    if (addParams)
     {
         if (addParams->sporefToListenTo != whatsVisible)
             JSLOG(error, "Erorr in createVisStruct of JSVisibleManager.  Expected sporefs of new visible should match whatsVisible");
 
-        JSProxyData* returner = new JSProxyData(emerScript,addParams);
-        mProxies[whatsVisible] = returner;
+        
+        JSProxyPtr returner (new JSProxyData(emerScript,addParams));
+        mProxies[whatsVisible] = JSProxyWPtr(returner);
         return returner;
     }
 
     
     //Have no record of this visible.  Creating a new entry just for it.
-    JSProxyData* returner = new JSProxyData(emerScript);
+    JSProxyPtr returner ( new JSProxyData(emerScript));
     returner->sporefToListenTo = whatsVisible;
-    mProxies[whatsVisible] = returner;
+    mProxies[whatsVisible] = JSProxyWPtr(returner);
     return returner;
 }
 

@@ -60,7 +60,6 @@
 #include "JS_JSMessage.pbj.hpp"
 #include "emerson/EmersonUtil.h"
 #include "emerson/EmersonException.h"
-#include "lexWhenPred/LexWhenPredUtil.h"
 #include "emerson/Util.h"
 #include "JSSystemNames.hpp"
 #include "JSObjectStructs/JSPresenceStruct.hpp"
@@ -70,7 +69,7 @@
 #include "JSObjects/JSObjectsUtils.hpp"
 #include "JSObjectStructs/JSUtilStruct.hpp"
 #include <boost/lexical_cast.hpp>
-#include "JSVisibleStructMonitor.hpp"
+
 
 
 using namespace v8;
@@ -81,6 +80,7 @@ namespace JS {
 
 EmersonScript::EmersonScript(HostedObjectPtr ho, const String& args, const String& script, JSObjectScriptManager* jMan)
  : JSObjectScript(jMan, ho->getObjectHost()->getStorage(), ho->getObjectHost()->getPersistedObjectSet(), ho->id()),
+   JSVisibleManager(this),
    mHandlingEvent(false),
    mResetting(false),
    mKilling(false),
@@ -179,7 +179,7 @@ void EmersonScript::resetScript()
  */
 void EmersonScript::resetPresence(JSPresenceStruct* jspresStruct)
 {
-    mPresences[*(jspresStruct->getToListenTo())] = jspresStruct;
+    mPresences[jspresStruct->getSporef()] = jspresStruct;
 }
 
 
@@ -226,9 +226,6 @@ void  EmersonScript::notifyProximateGone(ProxyObjectPtr proximateObject, const S
 {
     JSLOG(detailed,"Notified that object "<<proximateObject->getObjectReference()<<" went out of query of "<<querier<<".  Mostly just ignoring it.");
 
-    //notifies the underlying struct associated with this object (if any exist)
-    //that the proxy object is no longer visible.
-    JSVisibleStructMonitor::checkNotifyNowNotVis(proximateObject->getObjectReference(),querier);
 
     PresenceMapIter iter = mPresences.find(querier);
     if (iter == mPresences.end())
@@ -243,6 +240,7 @@ void  EmersonScript::notifyProximateGone(ProxyObjectPtr proximateObject, const S
         return;
     }
 
+    lkjs;
     JSVisibleStruct* jsvis =  checkVisStructExists(proximateObject->getObjectReference(),querier);
     if (jsvis == NULL)
     {
@@ -255,7 +253,7 @@ void  EmersonScript::notifyProximateGone(ProxyObjectPtr proximateObject, const S
 
     //jswrap the object
     //should be in context from createVisibleObject call
-    v8::Handle<v8::Object> outOfRangeObject = createVisibleObject(jsvis,mContext->mContext);
+    v8::Handle<v8::Object> outOfRangeObject = createVisiblePersistent(jsvis,mContext->mContext);
 
     TryCatch try_catch;
 
@@ -275,34 +273,6 @@ void  EmersonScript::notifyProximateGone(ProxyObjectPtr proximateObject, const S
 }
 
 
-
-//creates a js object associated with the jsvisiblestruct
-//will enter and exit the context passed in to make the object before returning
-v8::Local<v8::Object> EmersonScript::createVisibleObject(JSVisibleStruct* jsvis, v8::Handle<v8::Context> ctxToCreateIn)
-{
-    v8::HandleScope handle_scope;
-    v8::Context::Scope context_scope(ctxToCreateIn);
-
-    v8::Local<v8::Object> returner = mManager->mVisibleTemplate->GetFunction()->NewInstance();
-    returner->SetInternalField(VISIBLE_JSVISIBLESTRUCT_FIELD,v8::External::New(jsvis));
-    returner->SetInternalField(TYPEID_FIELD,v8::External::New(new String(VISIBLE_TYPEID_STRING)));
-
-    return handle_scope.Close(returner);
-}
-
-//attempts to make a new jsvisible struct...may be returned an existing one.
-//then wraps it as v8 object.
-v8::Persistent<v8::Object>  EmersonScript::createVisiblePersistent(const SpaceObjectReference& visibleObj,VisAddParams* addParams, v8::Handle<v8::Context>ctx)
-{
-    SpaceObjectReference visTo = SpaceObjectReference::null();
-    if ((addParams != NULL) && (addParams->mSporefWatchingFrom != NULL))
-        visTo = * addParams->mSporefWatchingFrom;
-
-    JSVisibleStruct* jsvis = JSVisibleStructMonitor::createVisStruct(this, visibleObj, visTo,addParams);
-    return createVisiblePersistent(jsvis,ctx);
-}
-
-
 v8::Persistent<v8::Object> EmersonScript::createVisiblePersistent(JSVisibleStruct* jsvis, v8::Handle<v8::Context> ctxToCreateIn)
 {
     v8::HandleScope handle_scope;
@@ -312,21 +282,12 @@ v8::Persistent<v8::Object> EmersonScript::createVisiblePersistent(JSVisibleStruc
     returner->SetInternalField(VISIBLE_JSVISIBLESTRUCT_FIELD,v8::External::New(jsvis));
     returner->SetInternalField(TYPEID_FIELD,v8::External::New(new String(VISIBLE_TYPEID_STRING)));
 
-
     v8::Persistent<v8::Object> returnerPers = v8::Persistent<v8::Object>::New(returner);
-
+    returnerPers.MakeWeak(NULL,&JSVisibleStruct::visibleWeakReferenceCleanup);
     return returnerPers;
 }
 
 
-
-//attempts to make a new jsvisible struct...may be returned an existing one.
-//then wraps it as v8 object.
-v8::Local<v8::Object> EmersonScript::createVisibleObject(const SpaceObjectReference& visibleObj,const SpaceObjectReference& visibleTo,VisAddParams* addParams, v8::Handle<v8::Context> ctx)
-{
-    JSVisibleStruct* jsvis = JSVisibleStructMonitor::createVisStruct(this, visibleObj, visibleTo, addParams);
-    return createVisibleObject(jsvis,ctx);
-}
 
 
 //if can't find visible, will just return self object
@@ -338,14 +299,13 @@ v8::Handle<v8::Value> EmersonScript::findVisible(const SpaceObjectReference& pro
     v8::Context::Scope context_scope(mContext->mContext);
 
 
-    JSVisibleStruct* jsvis = JSVisibleStructMonitor::checkVisStructExists(proximateObj);
+    JSVisibleStruct* jsvis = JSVisibleManager::checkVisStructExists(proximateObj);
 
     if (jsvis != NULL)
     {
         v8::Persistent<v8::Object> returnerPers =createVisiblePersistent(jsvis, mContext->mContext);
         return returnerPers;
     }
-
 
     //otherwise return undefined
     return v8::Undefined();
@@ -369,10 +329,7 @@ void EmersonScript::printMPresences()
 void  EmersonScript::notifyProximate(ProxyObjectPtr proximateObject, const SpaceObjectReference& querier)
 {
     JSLOG(detailed,"Notified that object "<<proximateObject->getObjectReference()<<" is within query of "<<querier<<".");
-
-    bool isVis = true;
-    VisAddParams vap(&isVis);
-    JSVisibleStruct* jsvis = JSVisibleStructMonitor::createVisStruct(this, proximateObject->getObjectReference(), querier, &vap);
+    JSVisibleStruct* jsvis = JSVisibleManager::createVisStruct(proximateObject->getObjectReference());
 
     // Invoke user callback
     PresenceMapIter iter = mPresences.find(querier);
@@ -678,7 +635,7 @@ v8::Handle<v8::Object> EmersonScript::getMessageSender(const ODP::Endpoint& src,
     bool isVis = false;
     VisAddParams vap(&isVis);
 
-    JSVisibleStruct* jsvis = JSVisibleStructMonitor::createVisStruct(this,from,to,&vap);
+    JSVisibleStruct* jsvis = JSVisibleManager::createVisStruct(this,from,to,&vap);
     v8::Persistent<v8::Object> returner =createVisiblePersistent(jsvis, mContext->mContext);
 
     return returner;
@@ -904,8 +861,7 @@ v8::Persistent<v8::Object> EmersonScript::presToVis(JSPresenceStruct* jspres, JS
     bool isVis = true;
     VisAddParams vap(&isVis);
 
-
-    JSVisibleStruct* jsvis = JSVisibleStructMonitor::createVisStruct(this,*(jspres->getSporef()),*(jspres->getSporef()),&vap);
+    JSVisibleStruct* jsvis = JSVisibleManager::createVisStruct(this,*(jspres->getSporef()),*(jspres->getSporef()),&vap);
 
     return createVisiblePersistent(jsvis, jscont->mContext);
 }

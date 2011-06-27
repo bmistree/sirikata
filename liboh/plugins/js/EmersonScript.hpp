@@ -47,23 +47,23 @@
 
 #include "JSPattern.hpp"
 #include "JSObjectStructs/JSEventHandlerStruct.hpp"
-#include "JSObjectScriptManager.hpp"
 #include "JSObjectStructs/JSPresenceStruct.hpp"
+#include "JSObjectStructs/JSContextStruct.hpp"
+#include "JSObjectStructs/JSVisibleStruct.hpp"
 #include <sirikata/proxyobject/ProxyCreationListener.hpp>
 #include "JSObjects/JSInvokableObject.hpp"
-#include "JSVisibleStructMonitor.hpp"
 #include "JSEntityCreateInfo.hpp"
 #include "JSObjectScript.hpp"
+#include "JSObjectScriptManager.hpp"
+#include "JSVisibleManager.hpp"
 
 namespace Sirikata {
 namespace JS {
 
 
-
-
 class EmersonScript : public JSObjectScript,
-                      public SessionEventListener,
-                      public JSVisibleStructMonitor
+                      public JSVisibleManager,
+                      public SessionEventListener
 {
 
 public:
@@ -73,6 +73,7 @@ public:
     // SessionEventListener Interface
     virtual void onConnected(SessionEventProviderPtr from, const SpaceObjectReference& name,HostedObject::PresenceToken token);
     virtual void onDisconnected(SessionEventProviderPtr from, const SpaceObjectReference& name);
+    
     //called by JSPresenceStruct.  requests the parent HostedObject disconnect
     //the presence associated with jspres
     void requestDisconnect(JSPresenceStruct* jspres);
@@ -95,6 +96,7 @@ public:
 
     v8::Handle<v8::Value> restorePresence(PresStructRestoreParams& psrp,JSContextStruct* jsctx);
 
+    
 
     /** Returns true if this script is valid, i.e. if it was successfully loaded
      *  and initialized.
@@ -152,8 +154,7 @@ public:
     //attempts to make a new jsvisiblestruct if don't already have one in
     //jsvismonitor matching visibleObj+visibleTo.  Wraps the c++ jsvisiblestruct
     //in v8 object.
-    v8::Local<v8::Object> createVisibleObject(const SpaceObjectReference& visibleObj,const SpaceObjectReference& visibleTo,VisAddParams* addParams, v8::Handle<v8::Context> ctx);
-    v8::Persistent<v8::Object> createVisiblePersistent(const SpaceObjectReference& visibleObj,VisAddParams* addParams, v8::Handle<v8::Context> ctx);
+    v8::Persistent<v8::Object> createVisiblePersistent(const SpaceObjectReference& visibleObj,JSProxyData* addParams, v8::Handle<v8::Context> ctx);
 
 
     v8::Handle<v8::Value> findVisible(const SpaceObjectReference& proximateObj);
@@ -210,7 +211,6 @@ public:
 private:
 
     //wraps internal c++ jsvisiblestruct in a v8 object
-    v8::Local<v8::Object> createVisibleObject(JSVisibleStruct* jsvis, v8::Handle<v8::Context> ctxToCreateIn);
     v8::Persistent<v8::Object> createVisiblePersistent(JSVisibleStruct* jsvis, v8::Handle<v8::Context> ctxToCreateIn);
 
     //Called internally by script when guaranteed to be outside of handler

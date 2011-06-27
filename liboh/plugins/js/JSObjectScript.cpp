@@ -37,8 +37,8 @@
 
 #include <fstream>
 #include "JSObjectScript.hpp"
-#include "JSObjectScriptManager.hpp"
 #include "JSLogging.hpp"
+#include "JSObjectScriptManager.hpp"
 
 #include "JSSerializer.hpp"
 #include "JSObjectStructs/JSEventHandlerStruct.hpp"
@@ -59,7 +59,6 @@
 #include "JS_JSMessage.pbj.hpp"
 #include "emerson/EmersonUtil.h"
 #include "emerson/EmersonException.h"
-#include "lexWhenPred/LexWhenPredUtil.h"
 #include "emerson/Util.h"
 #include "JSSystemNames.hpp"
 #include "JSObjectStructs/JSPresenceStruct.hpp"
@@ -69,7 +68,7 @@
 #include "JSObjects/JSObjectsUtils.hpp"
 #include "JSObjectStructs/JSUtilStruct.hpp"
 #include <boost/lexical_cast.hpp>
-#include "JSVisibleStructMonitor.hpp"
+
 
 
 

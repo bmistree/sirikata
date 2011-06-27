@@ -4,7 +4,6 @@
 #include <sirikata/oh/HostedObject.hpp>
 #include <v8.h>
 #include <vector>
-#include "JSSystemStruct.hpp"
 #include "../JSSystemNames.hpp"
 #include "../JSObjects/JSFields.hpp"
 #include "JSSuspendable.hpp"
@@ -27,8 +26,8 @@ class JSTimerStruct;
 class JSUtilStruct;
 class JSPositionListener;
 class JSSystemStruct;
-class VisAddParams;
 struct PresStructRestoreParams;
+class JSProxyData;
 
 struct JSContextStruct : public JSSuspendable
 {
@@ -59,7 +58,7 @@ struct JSContextStruct : public JSSuspendable
     //this context
     v8::Handle<v8::Object> struct_getSystem();
 
-    v8::Handle<v8::Value> struct_create_vis(const SpaceObjectReference& sporefWathcing,VisAddParams* addParams);
+    v8::Handle<v8::Value> struct_create_vis(const SpaceObjectReference& sporefWathcing,JSProxyData* addParams);
 
     v8::Handle<v8::Value> killEntity();
 
