@@ -18,7 +18,7 @@
 #include "JS_JSMessage.pbj.hpp"
 #include "../JSSerializer.hpp"
 #include "../EmersonScript.hpp"
-
+#include "JSSystemStruct.hpp"
 
 namespace Sirikata {
 namespace JS {
@@ -214,7 +214,7 @@ v8::Handle<v8::Value> JSContextStruct::struct_createVec3(Vector3d& toCreate)
 v8::Handle<v8::Value> JSContextStruct::sendMessageNoErrorHandler(JSPresenceStruct* jspres,const String& serialized_message,JSPositionListener* jspl)
 {
     CHECK_EMERSON_SCRIPT_ERROR(emerScript,sendMessage,jsObjScript);
-    emerScript->sendMessageToEntity( jspl->getToListenTo(), jspres->getSporef(), serialized_message);
+    emerScript->sendMessageToEntity( jspl->getSporef(), jspres->getSporef(), serialized_message);
 
     return v8::Undefined();
 }
@@ -239,10 +239,10 @@ v8::Handle<v8::Value>  JSContextStruct::struct_require(const String& toRequireFr
 //was created from return true.  Otherwise, return false.
 bool JSContextStruct::canReceiveMessagesFor(const SpaceObjectReference& receiver)
 {
-    if (associatedPresence != NULL && associatedPresence->getSporef() != NULL)
+    if ((associatedPresence != NULL) && (associatedPresence->getSporef() != SpaceObjectReference::null()))
     {
         //ie, we're not in the root sandbox
-        if (*(associatedPresence->getSporef()) == receiver)
+        if (associatedPresence->getSporef() == receiver)
             return true;
     }
 
@@ -282,9 +282,9 @@ bool JSContextStruct::hasPresence(const SpaceObjectReference& sporef)
     for (SuspendableIter iter = associatedSuspendables.begin(); iter != associatedSuspendables.end(); ++iter)
     {
         JSPresenceStruct* jspres = dynamic_cast<JSPresenceStruct*> (iter->first);
-        if (jspres != NULL && jspres->getSporef() != NULL)
+        if ((jspres != NULL) && (jspres->getSporef() != SpaceObjectReference::null()))
         {
-            if (*(jspres->getSporef()) == sporef)
+            if (jspres->getSporef() == sporef)
             {
                 mInSuspendableLoop = false;
                 flushQueuedSuspendablesToChange();
@@ -642,7 +642,7 @@ v8::Handle<v8::Value> JSContextStruct::struct_sendHome(const String& toSend)
     }
 
     CHECK_EMERSON_SCRIPT_ERROR(emerScript,sendHome,jsObjScript);
-    emerScript->sendMessageToEntity(mHomeObject,associatedPresence->getSporef(),toSend);
+    emerScript->sendMessageToEntity(*mHomeObject,associatedPresence->getSporef(),toSend);
     return v8::Undefined();
 }
 

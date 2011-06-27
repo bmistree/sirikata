@@ -240,13 +240,7 @@ void  EmersonScript::notifyProximateGone(ProxyObjectPtr proximateObject, const S
         return;
     }
 
-    lkjs;
-    JSVisibleStruct* jsvis =  checkVisStructExists(proximateObject->getObjectReference(),querier);
-    if (jsvis == NULL)
-    {
-        JSLOG(error, "Error in notifyProximateGone of JSObjectScript.  Before receiving a notification that an object is no longer visible, should have received a notification that it was originally visible.  Error on object: "<<proximateObject->getObjectReference()<<" for querier: "<<querier<<".  Aborting call now.");
-        return;
-    }
+    JSVisibleStruct* jsvis =  createVisStruct(proximateObject->getObjectReference());
 
     v8::HandleScope handle_scope;
     v8::Context::Scope context_scope(mContext->mContext);
@@ -298,17 +292,9 @@ v8::Handle<v8::Value> EmersonScript::findVisible(const SpaceObjectReference& pro
     v8::HandleScope handle_scope;
     v8::Context::Scope context_scope(mContext->mContext);
 
-
-    JSVisibleStruct* jsvis = JSVisibleManager::checkVisStructExists(proximateObj);
-
-    if (jsvis != NULL)
-    {
-        v8::Persistent<v8::Object> returnerPers =createVisiblePersistent(jsvis, mContext->mContext);
-        return returnerPers;
-    }
-
-    //otherwise return undefined
-    return v8::Undefined();
+    JSVisibleStruct* jsvis = createVisStruct(proximateObj);
+    v8::Persistent<v8::Object> returnerPers =createVisiblePersistent(jsvis, mContext->mContext);
+    return returnerPers;
 }
 
 //debugging code to output the sporefs of all the presences that I have in mPresences
@@ -465,7 +451,7 @@ void EmersonScript::callbackUnconnected(const SpaceObjectReference& name, Hosted
 //the presence associated with jspres
 void EmersonScript::requestDisconnect(JSPresenceStruct* jspres)
 {
-    SpaceObjectReference sporef = (*(jspres->getToListenTo()));
+    SpaceObjectReference sporef = (jspres->getSporef());
     mParent->disconnectFromSpace(sporef.space(), sporef.object());
 }
 
@@ -515,18 +501,17 @@ bool EmersonScript::valid() const
 
 
 
-
-void EmersonScript::sendMessageToEntity(SpaceObjectReference* sporef, SpaceObjectReference* from, const std::string& msgBody)
+void EmersonScript::sendMessageToEntity(const SpaceObjectReference& sporef, const SpaceObjectReference& from, const std::string& msgBody)
 {
 
-    std::map<SpaceObjectReference, ODP::Port*>::iterator iter = mMessagingPortMap.find(*from);
+    std::map<SpaceObjectReference, ODP::Port*>::iterator iter = mMessagingPortMap.find(from);
     if (iter == mMessagingPortMap.end())
     {
         JSLOG(error,"Trying to send from a sporef that does not exist");
         return;
     }
 
-    ODP::Endpoint dest (sporef->space(),sporef->object(),Services::COMMUNICATION);
+    ODP::Endpoint dest (sporef.space(),sporef.object(),Services::COMMUNICATION);
     MemoryReference toSend(msgBody);
 
     iter->second->send(dest,toSend);
@@ -631,11 +616,7 @@ v8::Handle<v8::Object> EmersonScript::getMessageSender(const ODP::Endpoint& src,
     SpaceObjectReference from(src.space(), src.object());
     SpaceObjectReference to  (dst.space(), dst.object());
 
-
-    bool isVis = false;
-    VisAddParams vap(&isVis);
-
-    JSVisibleStruct* jsvis = JSVisibleManager::createVisStruct(this,from,to,&vap);
+    JSVisibleStruct* jsvis = createVisStruct(from);
     v8::Persistent<v8::Object> returner =createVisiblePersistent(jsvis, mContext->mContext);
 
     return returner;
@@ -827,7 +808,9 @@ void EmersonScript::deletePres(JSPresenceStruct* toDelete)
             break;
         }
     }
-    mParent->disconnectFromSpace(toDelete->getSporef()->space(),toDelete->getSporef()->object());
+
+    SpaceObjectReference sporefToDelete = toDelete->getSporef();
+    mParent->disconnectFromSpace(sporefToDelete.space(),sporefToDelete.object());
     delete toDelete;
 }
 
@@ -858,14 +841,9 @@ v8::Handle<v8::Object> EmersonScript::makeEventHandlerObject(JSEventHandlerStruc
 //user
 v8::Persistent<v8::Object> EmersonScript::presToVis(JSPresenceStruct* jspres, JSContextStruct* jscont)
 {
-    bool isVis = true;
-    VisAddParams vap(&isVis);
-
-    JSVisibleStruct* jsvis = JSVisibleManager::createVisStruct(this,*(jspres->getSporef()),*(jspres->getSporef()),&vap);
-
+    JSVisibleStruct* jsvis = createVisStruct(jspres->getSporef());
     return createVisiblePersistent(jsvis, jscont->mContext);
 }
-
 
 
 JSPresenceStruct*  EmersonScript::addConnectedPresence(const SpaceObjectReference& sporef,HostedObject::PresenceToken token)

@@ -5,11 +5,12 @@
 #include "../JSObjects/JSFields.hpp"
 #include "../JSLogging.hpp"
 #include <v8.h>
+#include "Util.hpp"
 
 namespace Sirikata {
 namespace JS {
 
-JSVisibleStruct::JSVisibleStruct(const SpaceObjectReference& toWhom,JSProxyData addParams)
+JSVisibleStruct::JSVisibleStruct(JSProxyPtr addParams)
  : JSPositionListener(addParams)
 {
 }
@@ -17,7 +18,6 @@ JSVisibleStruct::JSVisibleStruct(const SpaceObjectReference& toWhom,JSProxyData 
 
 JSVisibleStruct::~JSVisibleStruct()
 {
-    JSPositionListener::~JSPositionListener();
 }
 
 
@@ -96,9 +96,11 @@ void JSVisibleStruct::visibleWeakReferenceCleanup(v8::Persistent<v8::Value> cont
     //check to make sure object has adequate number of fields.
     CHECK_INTERNAL_FIELD_COUNT(vis,JSVisible,VISIBLE_FIELD_COUNT);
 
-    
     //delete typeId, and return if have incorrect params for type id
     DEL_TYPEID_AND_CHECK(vis,jsvis,VISIBLE_TYPEID_STRING);
+
+    String err = "Potential error when cleaning up jsvisible.  Could not decode visible struct.";
+    JSVisibleStruct* jsvis = JSVisibleStruct::decodeVisible(vis,err);
 
     //jsvis now contains a pointer to a jsvisible struct, which we can now
     //delete.

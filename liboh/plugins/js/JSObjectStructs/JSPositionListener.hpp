@@ -59,7 +59,6 @@ protected:
     
 private:
 
-
     //private constructor.  Can only be made through serializer,
     //JSVisibleStruct, or JSPresenceStruct.
     JSPositionListener(    std::tr1::shared_ptr<JSProxyData> _jpp);

@@ -147,7 +147,7 @@ v8::Handle<v8::Value> JSSystemStruct::sendMessageNoErrorHandler(JSPresenceStruct
     //checking capability for this presence
     if(getContext()->getAssociatedPresenceStruct() != NULL)
     {
-        if (*(getContext()->getAssociatedPresenceStruct()->getToListenTo()) == *(jspres->getToListenTo()))
+        if (getContext()->getAssociatedPresenceStruct()->getSporef() == jspres->getSporef())
         {
             if (!canSend)
                 return v8::ThrowException( v8::Exception::Error(v8::String::New("Error.  You do not have the capability to send messages.")));

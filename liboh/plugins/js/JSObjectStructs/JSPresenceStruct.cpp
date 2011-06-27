@@ -19,7 +19,7 @@ namespace JS {
 //we give the space the token presenceToken, which it ships back when connection 
 //is completed.
 JSPresenceStruct::JSPresenceStruct(EmersonScript* parent, v8::Handle<v8::Function> connectedCallback,JSContextStruct* ctx, HostedObject::PresenceToken presenceToken)
- : JSPositionListener(parent, NULL),
+ : JSPositionListener(JSProxyPtr()),
    JSSuspendable(),
    mOnConnectedCallback(v8::Persistent<v8::Function>::New(connectedCallback)),
    mContID(ctx->getContextID()),
@@ -36,7 +36,7 @@ JSPresenceStruct::JSPresenceStruct(EmersonScript* parent, v8::Handle<v8::Functio
 //use this constructor if we already have a presence that is connected to the
 //space with spaceObjectRecference _sporef
 JSPresenceStruct::JSPresenceStruct(EmersonScript* parent, const SpaceObjectReference& _sporef, JSContextStruct* ctx,HostedObject::PresenceToken presenceToken)
- : JSPositionListener(parent,NULL),
+ : JSPositionListener(JSProxyPtr()),
    JSSuspendable(),
    mContID(ctx->getContextID()),
    isConnected(true),
@@ -53,7 +53,7 @@ JSPresenceStruct::JSPresenceStruct(EmersonScript* parent, const SpaceObjectRefer
 
 //use this constructor when we are restoring a presence.
 JSPresenceStruct::JSPresenceStruct(EmersonScript* parent,PresStructRestoreParams& psrp,Vector3f center, HostedObject::PresenceToken presToken,JSContextStruct* jscont)
- : JSPositionListener(parent,NULL),
+ : JSPositionListener(JSProxyPtr()),
    JSSuspendable(),
    isConnected(false),
    hasConnectedCallback(false),

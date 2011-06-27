@@ -112,7 +112,7 @@ public:
 
     v8::Handle<v8::Value> killEntity(JSContextStruct* jscont);
 
-    void sendMessageToEntity(SpaceObjectReference* reffer, SpaceObjectReference* from, const std::string& msgBody);
+    void sendMessageToEntity(const SpaceObjectReference& reffer, const SpaceObjectReference& from, const std::string& msgBody);
 
 
     //takes the c++ object jspres, creates a new visible object out of it, if we
@@ -206,7 +206,7 @@ public:
 
     JSContextStruct* rootContext() const { return mContext; }
 
-
+    HostedObjectPtr mParent;
 
 private:
 
@@ -236,9 +236,6 @@ private:
 
     //Does not delete handler.  Removes it from the eventHandlerList.
     void removeHandler(JSEventHandlerStruct* toRemove);
-
-
-    HostedObjectPtr mParent;
 
 
     //This function returns to you the current value of present token and

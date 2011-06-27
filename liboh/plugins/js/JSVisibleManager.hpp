@@ -90,7 +90,6 @@ public:
        then just creates a blank proxy data object with whatsVisible as its sporef.
      */
     JSVisibleStruct* createVisStruct(const SpaceObjectReference& whatsVisible);
-
     
     /**
        If a new proxy object is available and its sporef is in mProxies, update
@@ -183,7 +182,7 @@ JSProxyPtr nameProxy;\
         JSLOG(error,"Error in " #errorWhere "of JSVisibleManager.  Should have received a createProxy call for sporef before an updateLocation.  Adding element in case.");\
 \
         nameProxy =JSProxyPtr(new JSProxyData(emerScript)); \
-        mProxies[nametoMatch] = JSProxyWPtr(nameProxy); \
+        mProxies[nameToMatch] = JSProxyWPtr(nameProxy); \
     }\
     else\
         nameProxy = JSProxyPtr(iter->second);    \

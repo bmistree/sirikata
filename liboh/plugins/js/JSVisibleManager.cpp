@@ -28,16 +28,19 @@ JSVisibleManager::~JSVisibleManager()
 
 JSVisibleStruct* JSVisibleManager::createVisStruct(const SpaceObjectReference& whatsVisible)
 {
+    JSProxyPtr toCreateFrom;
     
     //If already have the visible object, then just return it.
-    SporefVisMapIter visIter = mVisibles.find(whatsVisible);
-    if (visIter != mVisibles.end())
-        return new JSVisibleStruct(JSProxyPtr(visIter->second));
-
-    //do not already have the visible object.  must create a new one.
-    return new JScreateVisStruct(whatsVisible,JSProxyData());        
+    SporefProxyMapIter proxIter = mProxies.find(whatsVisible);
+    if (proxIter != mProxies.end())
+        toCreateFrom = JSProxyPtr(proxIter->second);
+    else
+    {    //do not already have the visible object.  must create a new one.
+        toCreateFrom = createProxyPtr( whatsVisible, JSProxyPtr());
+    }
+    
+    return new JSVisibleStruct(toCreateFrom);
 }
-
 
 
 void JSVisibleManager::stopTrackingVis(const SpaceObjectReference& sporef)
@@ -64,7 +67,7 @@ void JSVisibleManager::removeListeners(const SpaceObjectReference& toRemoveListe
     for (std::vector<SpaceObjectReference>::iterator spIter = sporefVec.begin();
          spIter != sporefVec.end(); ++spIter)
     {
-        ProxyObjectPtr poPtr = getProxyManager->getProxyObject(toRemoveListenersFor);
+        ProxyObjectPtr poPtr = emerScript->mParent->getProxyManager(spIter->space(),spIter->object())->getProxyObject(toRemoveListenersFor);
 
         if (!poPtr)
             continue;
@@ -77,7 +80,7 @@ void JSVisibleManager::removeListeners(const SpaceObjectReference& toRemoveListe
 
 JSProxyPtr JSVisibleManager::createProxyPtr(const SpaceObjectReference& whatsVisible, JSProxyPtr addParams)
 {
-    ProxyObjectPtr ptr= getMostUpToDate(emerScript, whatsVisible);
+    ProxyObjectPtr ptr= getMostUpToDate(whatsVisible);
 
     // Had a proxy object that HostedObject was monitoring.  Load it into
     // mProxies and returning.
@@ -119,7 +122,7 @@ void JSVisibleManager::updateLocation (const TimedMotionVector3f &newLocation, c
     
     jspd->sporefToListenTo = sporef;
     jspd->mLocation        = newLocation;
-    jspd->mOrientation     = newOrientation;
+    jspd->mOrientation     = newOrient;
     jspd->mBounds          = newBounds;
 }
 
@@ -142,7 +145,7 @@ void JSVisibleManager::onSetScale (ProxyObjectPtr proxy, float32 newScale ,const
 void JSVisibleManager::onSetPhysics (ProxyObjectPtr proxy, const String& newphy,const SpaceObjectReference& sporef)
 {
     INLINE_GET_OR_CREATE_NEW_JSPROXY_DATA(jspd,sporef,onSetMesh);
-    jspd->mPhysics  = newPhy;    
+    jspd->mPhysics  = newphy;    
 }
 
 
@@ -157,7 +160,7 @@ ProxyObjectPtr JSVisibleManager::getMostUpToDate(const SpaceObjectReference& spo
     for (std::vector<SpaceObjectReference>::iterator spIter = sporefVec.begin();
          spIter != sporefVec.end(); ++spIter)
     {
-        ProxyObjectPtr poPtr = getProxyManager->getProxyObject(sporef);
+        ProxyObjectPtr poPtr = emerScript->mParent->getProxyManager(spIter->space(),spIter->object())->getProxyObject(sporef);
 
         if (!poPtr)
             continue;
@@ -167,7 +170,7 @@ ProxyObjectPtr JSVisibleManager::getMostUpToDate(const SpaceObjectReference& spo
         else
         {
             //set returner to the proxyobjptr with the freshest position update.
-            if(returner->getTimedMotionVector3f.updateTime() < poPtr->getTimedMotionVector3f.updateTime())
+            if(returner->getTimedMotionVector().updateTime() < poPtr->getTimedMotionVector().updateTime())
                 returner = poPtr;
         }
     }
@@ -181,7 +184,7 @@ void JSVisibleManager::setListeners(const SpaceObjectReference& toSetListenersFo
     for (std::vector<SpaceObjectReference>::iterator spIter = sporefVec.begin();
          spIter != sporefVec.end(); ++spIter)
     {
-        ProxyObjectPtr poPtr = getProxyManager->getProxyObject(sporef);
+        ProxyObjectPtr poPtr = emerScript->mParent->getProxyManager(spIter->space(),spIter->object())->getProxyObject(toSetListenersFor);
         if (!poPtr)
             continue;
 
@@ -214,16 +217,18 @@ void JSVisibleManager::onCreateProxy(ProxyObjectPtr p)
         p->PositionProvider::addListener(this);
         p->MeshProvider::addListener(this);
 
-        findIt->second->mLocation = ptr->getTimedMotionVector();
-        findIt->second->mOrientation = ptr->getTimedMotionQuaternion();
-        findIt->second->mBounds = ptr->getBounds();
-        findIt->second->mMesh = ptr->getMesh().toString();
-        findIt->second->mPhysics = ptr->getPhysics();
+
+        JSProxyPtr ptr (findIt->second);
+        ptr->mLocation    = p->getTimedMotionVector();
+        ptr->mOrientation = p->getTimedMotionQuaternion();
+        ptr->mBounds      = p->getBounds();
+        ptr->mMesh        = p->getMesh().toString();
+        ptr->mPhysics     = p->getPhysics();
     }
 }
 
 
-void onDestroyProxy(ProxyObjectPtr p);
+void JSVisibleManager::onDestroyProxy(ProxyObjectPtr p)
 {
     SporefProxyMapIter findIt = mProxies.find(p->getObjectReference());
     if (findIt != mProxies.end())
