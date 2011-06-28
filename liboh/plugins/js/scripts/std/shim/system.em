@@ -725,7 +725,10 @@ function PresenceEntry(sporef, presObj)
               //handle script is function
               if (typeof(script) == 'function')
               {
-                  var funcString = quoteEscaper(script.toString());
+                  //var funcString = quoteEscaper(script.toString());
+                  //var funcString = Escape.escapeString(script.toString(),null);
+                  var funcString = script.toString();
+                  
                   if (arg !== null)
                   {
                       var serializedArg = Escape.escapeString(this.serialize(arg), '@');
@@ -733,8 +736,7 @@ function PresenceEntry(sporef, presObj)
                   }
                   else
                       funcString = '(' + funcString + ") ( );";
-
-
+                  
                   this.__hidden_createEntity(position, 'js',funcString,mesh,scale,solidAngle,space);
               }
               else if (typeof(script) == 'string')

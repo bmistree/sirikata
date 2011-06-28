@@ -56,7 +56,17 @@ function cInitializer(myMaster)
         var processMasterMessage = function(msg,sender)
         {
             //var otherVis = system.createVisible(msg.sporef, msg.sporefFrom, msg.pos,msg.vel, msg.posTime, msg.orient, msg.orientVel, msg.orientTime,msg.pos, msg.scale, msg.mesh);
-            var otherVis = system.createVisible(msg.sporef, msg.pos,msg.vel, msg.posTime, msg.orient, msg.orientVel, msg.orientTime,msg.pos, msg.scale, msg.mesh);
+            var otherVis = system.createVisible(msg.sporef,
+                                                msg.pos,
+                                                msg.vel,
+                                                msg.posTime,
+                                                msg.orient,
+                                                msg.orientVel,
+                                                msg.orientTime,
+                                                msg.pos,
+                                                msg.scale,
+                                                msg.mesh,
+                                                msg.physics);
 
             system.print('\n\nThis is the position of the object that I am sending to: ');
             system.print( msg.pos);

@@ -460,7 +460,7 @@ v8::Handle<v8::Value> root_createVisible(const v8::Arguments& args)
         return v8::ThrowException( v8::Exception::Error(v8::String::New( errMsg.c_str())));
 
 
-    
+    //do not delete this bcause it gets put into a shared pointer.    
     JSProxyData* jspd = new JSProxyData(NULL, //note, do not need to point at
                                              //emerScript here.
         sporefVisWatching,
@@ -472,7 +472,6 @@ v8::Handle<v8::Value> root_createVisible(const v8::Arguments& args)
 
     
     v8::Handle<v8::Value> returner = jssys->struct_create_vis(sporefVisWatching,jspd);
-    delete jspd;
     return handle_scope.Close(returner);
 }
 
