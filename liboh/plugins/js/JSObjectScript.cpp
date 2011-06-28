@@ -232,7 +232,7 @@ void JSObjectScript::initialize(const String& args, const String& script)
     v8::HandleScope handle_scope;
 
     SpaceObjectReference sporef = SpaceObjectReference::null();
-    mContext = new JSContextStruct(this,NULL,&sporef,true,true,true,true,true,true,true,mManager->mContextGlobalTemplate,contIDTracker);
+    mContext = new JSContextStruct(this,NULL,sporef,true,true,true,true,true,true,true,mManager->mContextGlobalTemplate,contIDTracker);
     mContStructMap[contIDTracker] = mContext;
     ++contIDTracker;
 
@@ -1019,7 +1019,7 @@ v8::Handle<v8::Value> JSObjectScript::require(const String& filename,JSContextSt
 //canCreatePres is whether have capability to create presences
 //canCreateEnt is whether have capability to create entities
 //last field returns the created context struct by reference
-v8::Local<v8::Object> JSObjectScript::createContext(JSPresenceStruct* presAssociatedWith,SpaceObjectReference* canMessage,bool sendEveryone, bool recvEveryone, bool proxQueries, bool canImport, bool canCreatePres,bool canCreateEnt,bool canEval,JSContextStruct*& internalContextField)
+v8::Local<v8::Object> JSObjectScript::createContext(JSPresenceStruct* presAssociatedWith,SpaceObjectReference canMessage,bool sendEveryone, bool recvEveryone, bool proxQueries, bool canImport, bool canCreatePres,bool canCreateEnt,bool canEval,JSContextStruct*& internalContextField)
 {
     v8::HandleScope handle_scope;
 

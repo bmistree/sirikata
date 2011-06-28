@@ -11,6 +11,7 @@
 namespace Sirikata {
 namespace JS {
 
+
 struct PresStructRestoreParams
 {
     PresStructRestoreParams(SpaceObjectReference* sporef,TimedMotionVector3f* tmv3f,TimedMotionQuaternion* tmq,String* mesh,double* scale,bool *isCleared,uint32* contID,bool* isConnected,v8::Handle<v8::Function>* connCallback,bool* isSuspended,Vector3f* suspendedVelocity,Quaternion* suspendedOrientationVelocity, SolidAngle* sa)
@@ -72,7 +73,15 @@ struct JSPresenceStruct : public JSPositionListener,
     ~JSPresenceStruct();
 
 
-    void connect(const SpaceObjectReference& _sporef);
+    /**
+       @param {SpaceObjectReference} _sporef The new sporef for this object now
+       that it is connected.
+       @param {JSProxyPtr} newJPP Before this presenceStruct was connected, we
+       didn't have a sporef, and therefore, had to use an empty proxy ptr in the
+       positionlistener for this presence.  Now that we know sporef, we also
+       know the proxy ptr should set in position listener.  
+     */
+    void connect(const SpaceObjectReference& _sporef, std::tr1::shared_ptr<JSProxyData> newJPP);
     void disconnectCalledFromObjScript();
 
 
@@ -94,7 +103,7 @@ struct JSPresenceStruct : public JSPositionListener,
     v8::Handle<v8::Value> setConnectedCB(v8::Handle<v8::Function> newCB);
 
 
-    v8::Handle<v8::Value> struct_createContext(SpaceObjectReference* canMessage, bool sendEveryone,bool recvEveryone,bool proxQueries,bool canImport,bool canCreatePres, bool canCreateEnt,bool canEval);
+    v8::Handle<v8::Value> struct_createContext(SpaceObjectReference canMessage, bool sendEveryone,bool recvEveryone,bool proxQueries,bool canImport,bool canCreatePres, bool canCreateEnt,bool canEval);
 
 
     void addAssociatedContext(JSContextStruct*);

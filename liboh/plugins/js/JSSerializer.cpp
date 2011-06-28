@@ -553,9 +553,8 @@ bool JSSerializer::deserializeObjectInternal( EmersonScript* emerScript, Sirikat
         Sirikata::JS::Protocol::JSFieldValue jsvalue = jsf.value();
 
         if(jsf.name() == VISIBLE_SPACEOBJREF_STRING)
-        {
           visibleObj = SpaceObjectReference(jsvalue.s_value());
-        }
+
       }
 
 
@@ -569,7 +568,7 @@ bool JSSerializer::deserializeObjectInternal( EmersonScript* emerScript, Sirikat
       v8::Handle<v8::Context> ctx = v8::Context::GetCurrent();
 
       //create the vis obj through objScript
-      deserializeTo = emerScript->createVisiblePersistent(visibleObj,NULL, ctx);  
+      deserializeTo = emerScript->createVisiblePersistent(visibleObj,NULL,ctx);  
 
       return true;
     }

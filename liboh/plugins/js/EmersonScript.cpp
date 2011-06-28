@@ -81,10 +81,10 @@ namespace JS {
 EmersonScript::EmersonScript(HostedObjectPtr ho, const String& args, const String& script, JSObjectScriptManager* jMan)
  : JSObjectScript(jMan, ho->getObjectHost()->getStorage(), ho->getObjectHost()->getPersistedObjectSet(), ho->id()),
    JSVisibleManager(this),
+   mParent(ho),
    mHandlingEvent(false),
    mResetting(false),
    mKilling(false),
-   mParent(ho),
    mCreateEntityPort(NULL),
    presenceToken(HostedObject::DEFAULT_PRESENCE_TOKEN +1)
 {
@@ -266,6 +266,12 @@ void  EmersonScript::notifyProximateGone(ProxyObjectPtr proximateObject, const S
 
 }
 
+v8::Persistent<v8::Object> EmersonScript::createVisiblePersistent(const SpaceObjectReference& visibleObj,JSProxyData* addParams, v8::Handle<v8::Context> ctx)
+{
+    JSVisibleStruct* jsvis =  createVisStruct(visibleObj,addParams);
+    return createVisiblePersistent(jsvis,ctx);
+}
+
 
 v8::Persistent<v8::Object> EmersonScript::createVisiblePersistent(JSVisibleStruct* jsvis, v8::Handle<v8::Context> ctxToCreateIn)
 {
@@ -437,8 +443,13 @@ void EmersonScript::callbackUnconnected(const SpaceObjectReference& name, Hosted
     {
         if (token == (*iter)->getPresenceToken())
         {
+            //before the presence was connected, didn't have a sporef, and
+            //had to set presence's position listener with a blank proxyptr.
+            //can now set it with a real one that listens as it moves/changes in
+            //the world.
+            JSProxyPtr proxPtr  =  createProxyPtr(name, JSProxyPtr());
             mPresences[name] = *iter;
-            (*iter)->connect(name);
+            (*iter)->connect(name,proxPtr);
             mUnconnectedPresences.erase(iter);
             return;
         }
@@ -985,80 +996,76 @@ HostedObject::PresenceToken EmersonScript::incrementPresenceToken()
 }
 
 
-void EmersonScript::setOrientationVelFunction(const SpaceObjectReference* sporef,const Quaternion& quat)
+void EmersonScript::setOrientationVelFunction(const SpaceObjectReference sporef,const Quaternion& quat)
 {
-    mParent->requestOrientationVelocityUpdate(sporef->space(),sporef->object(),quat);
+    mParent->requestOrientationVelocityUpdate(sporef.space(),sporef.object(),quat);
 }
 
-
-
-
-void EmersonScript::setPositionFunction(const SpaceObjectReference* sporef, const Vector3f& posVec)
+void EmersonScript::setPositionFunction(const SpaceObjectReference sporef, const Vector3f& posVec)
 {
-    mParent->requestPositionUpdate(sporef->space(),sporef->object(),posVec);
+    mParent->requestPositionUpdate(sporef.space(),sporef.object(),posVec);
 }
-
 
 
 //velocity
-void EmersonScript::setVelocityFunction(const SpaceObjectReference* sporef, const Vector3f& velVec)
+void EmersonScript::setVelocityFunction(const SpaceObjectReference sporef, const Vector3f& velVec)
 {
-    mParent->requestVelocityUpdate(sporef->space(),sporef->object(),velVec);
+    mParent->requestVelocityUpdate(sporef.space(),sporef.object(),velVec);
 }
 
 
 
 //orientation
-void  EmersonScript::setOrientationFunction(const SpaceObjectReference* sporef, const Quaternion& quat)
+void  EmersonScript::setOrientationFunction(const SpaceObjectReference sporef, const Quaternion& quat)
 {
-    mParent->requestOrientationDirectionUpdate(sporef->space(),sporef->object(),quat);
+    mParent->requestOrientationDirectionUpdate(sporef.space(),sporef.object(),quat);
 }
 
 
 
 //scale
-void EmersonScript::setVisualScaleFunction(const SpaceObjectReference* sporef, float newscale)
+void EmersonScript::setVisualScaleFunction(const SpaceObjectReference sporef, float newscale)
 {
-    BoundingSphere3f bnds = mParent->requestCurrentBounds(sporef->space(),sporef->object());
+    BoundingSphere3f bnds = mParent->requestCurrentBounds(sporef.space(),sporef.object());
     bnds = BoundingSphere3f(bnds.center(), newscale);
-    mParent->requestBoundsUpdate(sporef->space(),sporef->object(), bnds);
+    mParent->requestBoundsUpdate(sporef.space(),sporef.object(), bnds);
 }
 
 
 
 //mesh
 //FIXME: May want to have an error handler for this function.
-void  EmersonScript::setVisualFunction(const SpaceObjectReference* sporef, const std::string& newMeshString)
+void  EmersonScript::setVisualFunction(const SpaceObjectReference sporef, const std::string& newMeshString)
 {
     //FIXME: need to also pass in the object reference
-    mParent->requestMeshUpdate(sporef->space(),sporef->object(),newMeshString);
+    mParent->requestMeshUpdate(sporef.space(),sporef.object(),newMeshString);
 }
 
 //physics
-v8::Handle<v8::Value> EmersonScript::getPhysicsFunction(const SpaceObjectReference* sporef)
+v8::Handle<v8::Value> EmersonScript::getPhysicsFunction(const SpaceObjectReference sporef)
 {
-    String curphy = mParent->requestCurrentPhysics(sporef->space(),sporef->object());
+    String curphy = mParent->requestCurrentPhysics(sporef.space(),sporef.object());
     return v8::String::New(curphy.c_str(), curphy.size());
 }
 
 //FIXME: May want to have an error handler for this function.
-void EmersonScript::setPhysicsFunction(const SpaceObjectReference* sporef, const String& newPhyString)
+void EmersonScript::setPhysicsFunction(const SpaceObjectReference sporef, const String& newPhyString)
 {
     //FIXME: need to also pass in the object reference
-    mParent->requestPhysicsUpdate(sporef->space(), sporef->object(), newPhyString);
+    mParent->requestPhysicsUpdate(sporef.space(), sporef.object(), newPhyString);
 }
 
 
 //just sets the solid angle query for the object.
-void EmersonScript::setQueryAngleFunction(const SpaceObjectReference* sporef, const SolidAngle& sa)
+void EmersonScript::setQueryAngleFunction(const SpaceObjectReference sporef, const SolidAngle& sa)
 {
-    mParent->requestQueryUpdate(sporef->space(), sporef->object(), sa);
+    mParent->requestQueryUpdate(sporef.space(), sporef.object(), sa);
 }
 
 
-SolidAngle EmersonScript::getQueryAngle(const SpaceObjectReference* sporef)
+SolidAngle EmersonScript::getQueryAngle(const SpaceObjectReference sporef)
 {
-    SolidAngle returner = mParent->requestQueryAngle(sporef->space(),sporef->object());
+    SolidAngle returner = mParent->requestQueryAngle(sporef.space(),sporef.object());
     return returner;
 }
 

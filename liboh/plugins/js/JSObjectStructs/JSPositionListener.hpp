@@ -43,14 +43,22 @@ public:
     virtual v8::Handle<v8::Value> struct_getSporef();
     virtual v8::Handle<v8::Value> struct_getStillVisible();
 
-    virtual v8::Handle<v8::Object> struct_getAllData();
-
+    virtual v8::Handle<v8::Value> struct_getAllData();
+    virtual v8::Handle<v8::Value> struct_checkEqual(JSPositionListener* jpl);
     
     virtual v8::Handle<v8::Value> struct_getDistance(const Vector3d& distTo);
 
     //simple accessors for sporef fields
     SpaceObjectReference getSporef();
 
+
+    /**
+       This call mostly exists for presences, which don't know their sporefs
+       (and hence their proxy data ptrs) until after they've connected to the
+       world.  JSPresenceStruct can set it here.
+     */
+    void setSharedProxyDataPtr(    std::tr1::shared_ptr<JSProxyData>_jpp);
+    
 
 protected:
     v8::Handle<v8::Value> wrapSporef(SpaceObjectReference sporef);
@@ -65,20 +73,32 @@ private:
 };
 
 
+
+//Throws an error if jpp has not yet been initialized.
+#define CHECK_JPP_INIT_THROW_V8_ERROR(funcIn)\
+{\
+    if (!jpp)\
+    {\
+        JSLOG(error,"Error in jspositionlistener.  Position proxy was not set."); \
+        return v8::ThrowException(v8::Exception::Error(v8::String::New("Error when calling " #funcIn ".  Proxy ptr was not set.")));\
+    }\
+}
+    
+
 //Throws an error if not in context.
 //funcIn specifies which function is asking passErrorChecks, and gets printed in
 //an error message if call fails.
 //If in context, returns current context in con.
 #define JSPOSITION_CHECK_IN_CONTEXT_THROW_EXCEP(funcIn,con)\
-    if (!v8::Context::InContext()) \
+    CHECK_JPP_INIT_THROW_V8_ERROR(funcIn);\
+    if (!v8::Context::InContext())                  \
     {\
-        JSLOG(error,"Error in jspositionlistener.  Was not in a context.";\
+        JSLOG(error,"Error in jspositionlistener.  Was not in a context."); \
         return v8::ThrowException(v8::Exception::Error(v8::String::New("Error when calling " #funcIn ".  Not currently within a context.")));\
     }\
     v8::Handle<v8::Context>con = v8::Context::GetCurrent();
 
 
-    
 
 }//end namespace js
 }//end namespace sirikata

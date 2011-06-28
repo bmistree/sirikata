@@ -136,24 +136,34 @@ public:
 
 
     //handling basic datatypes for JSPresences
-    void setVisualFunction(const SpaceObjectReference* sporef, const std::string& newMeshString);
-    void setPositionFunction(const SpaceObjectReference* sporef, const Vector3f& posVec);
-    void setVelocityFunction(const SpaceObjectReference* sporef, const Vector3f& velVec);
-    void setOrientationFunction(const SpaceObjectReference* sporef, const Quaternion& quat);
-    void setVisualScaleFunction(const SpaceObjectReference* sporef, float newScale);
-    void setOrientationVelFunction(const SpaceObjectReference* sporef, const Quaternion& quat);
+    void setVisualFunction(const SpaceObjectReference sporef, const std::string& newMeshString);
+    void setPositionFunction(const SpaceObjectReference sporef, const Vector3f& posVec);
+    void setVelocityFunction(const SpaceObjectReference sporef, const Vector3f& velVec);
+    void setOrientationFunction(const SpaceObjectReference sporef, const Quaternion& quat);
+    void setVisualScaleFunction(const SpaceObjectReference sporef, float newScale);
+    void setOrientationVelFunction(const SpaceObjectReference sporef, const Quaternion& quat);
 
-    void setQueryAngleFunction(const SpaceObjectReference* sporef, const SolidAngle& sa);
-    SolidAngle getQueryAngle(const SpaceObjectReference* sporef);
+    void setQueryAngleFunction(const SpaceObjectReference sporef, const SolidAngle& sa);
+    SolidAngle getQueryAngle(const SpaceObjectReference sporef);
 
 
-    v8::Handle<v8::Value> getPhysicsFunction(const SpaceObjectReference* sporef);
-    void setPhysicsFunction(const SpaceObjectReference* sporef, const String& newPhysicsString);
+    v8::Handle<v8::Value> getPhysicsFunction(const SpaceObjectReference sporef);
+    void setPhysicsFunction(const SpaceObjectReference sporef, const String& newPhysicsString);
 
     /****Methods that return V8 wrappers for c++ objects **/
-    //attempts to make a new jsvisiblestruct if don't already have one in
-    //jsvismonitor matching visibleObj+visibleTo.  Wraps the c++ jsvisiblestruct
-    //in v8 object.
+
+
+    /**
+       Creates a JSVisibleStruct and wraps it in a persistent v8 object that is
+       returned.  
+       
+       @param {SpaceObjectReference} visibleObj Will make a JSVisibleStruct out
+       of this spaceobjectreference.
+
+       @param {JSProxyData} addParams If don't have a proxy object in the world
+       with sporef visibleObj, will try to fill in JSVisibleStruct data with
+       these values (note: if NULL), fills in default values.
+     */
     v8::Persistent<v8::Object> createVisiblePersistent(const SpaceObjectReference& visibleObj,JSProxyData* addParams, v8::Handle<v8::Context> ctx);
 
 

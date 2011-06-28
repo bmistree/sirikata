@@ -23,7 +23,7 @@
 namespace Sirikata {
 namespace JS {
 
-JSContextStruct::JSContextStruct(JSObjectScript* parent, JSPresenceStruct* whichPresence, SpaceObjectReference* home, bool sendEveryone, bool recvEveryone, bool proxQueries, bool canImport,bool canCreatePres,bool canCreateEnt,bool canEval, v8::Handle<v8::ObjectTemplate> contGlobTempl,uint32 contID)
+JSContextStruct::JSContextStruct(JSObjectScript* parent, JSPresenceStruct* whichPresence, SpaceObjectReference home, bool sendEveryone, bool recvEveryone, bool proxQueries, bool canImport,bool canCreatePres,bool canCreateEnt,bool canEval, v8::Handle<v8::ObjectTemplate> contGlobTempl,uint32 contID)
  : JSSuspendable(),
    jsObjScript(parent),
    mContext(v8::Context::New(NULL, contGlobTempl)),
@@ -31,7 +31,7 @@ JSContextStruct::JSContextStruct(JSObjectScript* parent, JSPresenceStruct* which
    hasOnConnectedCallback(false),
    hasOnDisconnectedCallback(false),
    associatedPresence(whichPresence),
-   mHomeObject(new SpaceObjectReference(*home)),
+   mHomeObject(home),
    mSystem(new JSSystemStruct(this,sendEveryone, recvEveryone,proxQueries,canImport,canCreatePres,canCreateEnt,canEval)),
    mContGlobTempl(contGlobTempl),
    mUtil(NULL),
@@ -403,7 +403,6 @@ JSContextStruct::~JSContextStruct()
     clear();
 
     delete mSystem;
-    delete mHomeObject;
     delete mUtil;
 
 }
@@ -642,7 +641,7 @@ v8::Handle<v8::Value> JSContextStruct::struct_sendHome(const String& toSend)
     }
 
     CHECK_EMERSON_SCRIPT_ERROR(emerScript,sendHome,jsObjScript);
-    emerScript->sendMessageToEntity(*mHomeObject,associatedPresence->getSporef(),toSend);
+    emerScript->sendMessageToEntity(mHomeObject,associatedPresence->getSporef(),toSend);
     return v8::Undefined();
 }
 
@@ -749,7 +748,7 @@ canCreateEnt is whether have capability to create entities
 if presStruct is null, just use the presence that is associated with this
 context (which may be null as well).
 */
-v8::Handle<v8::Value> JSContextStruct::struct_createContext(SpaceObjectReference* canMessage, bool sendEveryone,bool recvEveryone,bool proxQueries,bool canImport, bool canCreatePres, bool canCreateEnt, bool canEval,JSPresenceStruct* presStruct)
+v8::Handle<v8::Value> JSContextStruct::struct_createContext(SpaceObjectReference canMessage, bool sendEveryone,bool recvEveryone,bool proxQueries,bool canImport, bool canCreatePres, bool canCreateEnt, bool canEval,JSPresenceStruct* presStruct)
 {
     if (presStruct == NULL)
         presStruct = associatedPresence;

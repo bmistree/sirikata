@@ -13,7 +13,10 @@ namespace Sirikata {
 namespace JS {
 
 
-JSPositionListener(JSProxyPtr _jpp);
+
+
+
+JSPositionListener::JSPositionListener(JSProxyPtr _jpp)
  : jpp(_jpp)
 {
 }
@@ -23,8 +26,15 @@ JSPositionListener::~JSPositionListener()
 {
 }
 
-v8::Handle<v8::Object> JSPositionListener::struct_getAllData()
+void JSPositionListener::setSharedProxyDataPtr( JSProxyPtr _jpp)
 {
+    jpp = _jpp;
+}
+
+v8::Handle<v8::Value> JSPositionListener::struct_getAllData()
+{
+    CHECK_JPP_INIT_THROW_V8_ERROR(getAllData);
+    
     v8::HandleScope handle_scope;
     v8::Handle<v8::Object> returner = v8::Object::New();
     returner->Set(v8::String::New("sporef"), struct_getSporef());
@@ -42,6 +52,12 @@ v8::Handle<v8::Object> JSPositionListener::struct_getAllData()
     return handle_scope.Close(returner);
 }
 
+v8::Handle<v8::Value> JSPositionListener::struct_getSporef()
+{
+    CHECK_JPP_INIT_THROW_V8_ERROR(getSporef);
+    return v8::String::New(getSporef().toString().c_str());
+}
+
 SpaceObjectReference JSPositionListener::getSporef()
 {
     return jpp->sporefToListenTo;
@@ -49,11 +65,13 @@ SpaceObjectReference JSPositionListener::getSporef()
 
 String JSPositionListener::getMesh()
 {
+
     return jpp->mMesh;
 }
 
 v8::Handle<v8::Value> JSPositionListener::struct_getMesh()
 {
+    CHECK_JPP_INIT_THROW_V8_ERROR(getMesh);
     return v8::String::New(jpp->mMesh.c_str(),jpp->mMesh.size());
 }
 
@@ -61,9 +79,11 @@ bool JSPositionListener::getStillVisible()
 {
     return jpp->emerScript->isVisible(jpp->sporefToListenTo);
 }
-v8::Handle<v8::Value> JSPositionListener::getStillVisible()
+
+v8::Handle<v8::Value> JSPositionListener::struct_getStillVisible()
 {
-    return v8::Boolean::New(getStillVisibleCPP);
+    CHECK_JPP_INIT_THROW_V8_ERROR(getStillVisible);
+    return v8::Boolean::New(getStillVisible());
 }
 
 String JSPositionListener::getPhysics()
@@ -73,6 +93,7 @@ String JSPositionListener::getPhysics()
 
 v8::Handle<v8::Value> JSPositionListener::struct_getPhysics()
 {
+    CHECK_JPP_INIT_THROW_V8_ERROR(getVisible);
     return v8::String::New(jpp->mPhysics.c_str(),jpp->mPhysics.size());
 }
 
@@ -110,6 +131,7 @@ v8::Handle<v8::Value> JSPositionListener::struct_getPosition()
 
 v8::Handle<v8::Value> JSPositionListener::struct_getTransTime()
 {
+    CHECK_JPP_INIT_THROW_V8_ERROR(getTranstime);
     uint64 transTime = jpp->mLocation.updateTime().raw();
     String convertedString;
 
@@ -128,6 +150,8 @@ v8::Handle<v8::Value> JSPositionListener::struct_getTransTime()
 
 v8::Handle<v8::Value> JSPositionListener::struct_getOrientTime()
 {
+    CHECK_JPP_INIT_THROW_V8_ERROR(getOrientTime);
+    
     uint64 orientTime = jpp->mOrientation.updateTime().raw();
     String convertedString;
 
@@ -147,9 +171,16 @@ v8::Handle<v8::Value> JSPositionListener::struct_getOrientTime()
 
 v8::Handle<v8::Value> JSPositionListener::wrapSporef(SpaceObjectReference sporef)
 {
-    return v8::String::New(sporef->toString().c_str());
+    return v8::String::New(sporef.toString().c_str());
 }
 
+
+v8::Handle<v8::Value> JSPositionListener::struct_checkEqual(JSPositionListener* jpl)
+{
+    CHECK_JPP_INIT_THROW_V8_ERROR(checkEqual);
+    bool returner = (getSporef() == jpl->getSporef());
+    return v8::Boolean::New(returner);
+}
 
 
 v8::Handle<v8::Value>JSPositionListener::struct_getVelocity()
@@ -172,11 +203,13 @@ v8::Handle<v8::Value> JSPositionListener::struct_getOrientation()
 
 v8::Handle<v8::Value> JSPositionListener::struct_getScale()
 {
+    CHECK_JPP_INIT_THROW_V8_ERROR(getScale);
     return v8::Number::New(getBounds().radius());
 }
 
 v8::Handle<v8::Value> JSPositionListener::struct_getDistance(const Vector3d& distTo)
 {
+    CHECK_JPP_INIT_THROW_V8_ERROR(getDistance);
     Vector3d curPos = Vector3d(getPosition());
     double distVal = (distTo - curPos).length();
 

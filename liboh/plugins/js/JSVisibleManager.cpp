@@ -26,19 +26,9 @@ JSVisibleManager::~JSVisibleManager()
 }
 
 
-JSVisibleStruct* JSVisibleManager::createVisStruct(const SpaceObjectReference& whatsVisible)
+JSVisibleStruct* JSVisibleManager::createVisStruct(const SpaceObjectReference& whatsVisible,JSProxyData* addParams)
 {
-    JSProxyPtr toCreateFrom;
-    
-    //If already have the visible object, then just return it.
-    SporefProxyMapIter proxIter = mProxies.find(whatsVisible);
-    if (proxIter != mProxies.end())
-        toCreateFrom = JSProxyPtr(proxIter->second);
-    else
-    {    //do not already have the visible object.  must create a new one.
-        toCreateFrom = createProxyPtr( whatsVisible, JSProxyPtr());
-    }
-    
+    JSProxyPtr toCreateFrom = createProxyPtr( whatsVisible, JSProxyPtr(addParams));
     return new JSVisibleStruct(toCreateFrom);
 }
 
@@ -80,6 +70,10 @@ void JSVisibleManager::removeListeners(const SpaceObjectReference& toRemoveListe
 
 JSProxyPtr JSVisibleManager::createProxyPtr(const SpaceObjectReference& whatsVisible, JSProxyPtr addParams)
 {
+    SporefProxyMapIter proxIter = mProxies.find(whatsVisible);
+    if (proxIter != mProxies.end())
+        return JSProxyPtr(proxIter->second);
+    
     ProxyObjectPtr ptr= getMostUpToDate(whatsVisible);
 
     // Had a proxy object that HostedObject was monitoring.  Load it into
@@ -89,9 +83,11 @@ JSProxyPtr JSVisibleManager::createProxyPtr(const SpaceObjectReference& whatsVis
         JSProxyPtr jspd (new JSProxyData(emerScript,whatsVisible,ptr->getTimedMotionVector(),ptr->getTimedMotionQuaternion(),ptr->getBounds(),ptr->getMesh().toString(),ptr->getPhysics()));
 
         mProxies[whatsVisible] = JSProxyWPtr(jspd);
+        setListeners(whatsVisible);
         return jspd;
     }
-    
+
+    //hosted object does not have a visible with sporef whatsVisible.
 
     //load additional data on the visible from addParams
     if (addParams)
@@ -216,7 +212,6 @@ void JSVisibleManager::onCreateProxy(ProxyObjectPtr p)
         //listen for updats from p as well as updating data in mProxies
         p->PositionProvider::addListener(this);
         p->MeshProvider::addListener(this);
-
 
         JSProxyPtr ptr (findIt->second);
         ptr->mLocation    = p->getTimedMotionVector();

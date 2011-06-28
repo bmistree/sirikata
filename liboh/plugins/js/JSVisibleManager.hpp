@@ -78,18 +78,27 @@ public:
     ~JSVisibleManager();
 
     
+
     /**
-       If we already have a visible struct associated with the sporef
-       whatsVisible, then just returns it.  Otherwise, attempts to create a new
-       one.
+       Creates a new visible struct with sporef whatsVisible.  First checks if
+       already have visible with sporef whatsVisible in mProxies.  If do,
+       creates new visible struct from weak pointer stored there.  If do not,
+       then checks if hosted object has any proxy objects with given sporef, if
+       not, then tries to load from addParams.  If addParams is null, then just
+       creates a blank proxy data object with whatsVisible as its sporef.
      */
+    JSVisibleStruct* createVisStruct(const SpaceObjectReference& whatsVisible, JSProxyData* addParams= NULL);
+
+
     /**
-       Creates a new visible struct with sporef whatsVisible and loads it into
-       mProxies.  First checks if hosted object has any proxy objects with given
-       sporef, if not, then tries to load from addParams.  If addParams is null,
-       then just creates a blank proxy data object with whatsVisible as its sporef.
+       If ho does not have a proxy obj with whatsVisible as its sporef, checks
+       addParams if addParams is non-null, returned proxyptr will be
+       initialized with the data in addParams.  Otherwise, what's returned will
+       have defaults for all its position, velocity, etc. fields (likely 0s.).
      */
-    JSVisibleStruct* createVisStruct(const SpaceObjectReference& whatsVisible);
+    JSProxyPtr createProxyPtr(const SpaceObjectReference& whatsVisible, JSProxyPtr addParams);
+
+  
     
     /**
        If a new proxy object is available and its sporef is in mProxies, update
@@ -124,12 +133,12 @@ public:
        that were registered through objecthostproxymanager.
      */
     void stopTrackingVis(const SpaceObjectReference& sporef);
+
+    bool isVisible(const SpaceObjectReference& sporef);
     
 private:
 
-    JSProxyPtr createProxyPtr(const SpaceObjectReference& whatsVisible, JSProxyPtr addParams);
-
-    
+  
     /**
        Runs through all the presences on this entity.  For each presence, checks
        if have a proxy object associated with sporef.  Return the proxy object
@@ -150,7 +159,7 @@ private:
     void removeListeners(const SpaceObjectReference& toRemoveListenersFor);
     
     
-    bool isVisible(const SpaceObjectReference& sporef);
+
     v8::Handle<v8::Value> isVisibleV8(const SpaceObjectReference& sporef);
     
     EmersonScript* emerScript;
@@ -177,9 +186,9 @@ private:
 JSProxyPtr nameProxy;\
 {\
     SporefProxyMapIter iter = mProxies.find(nameToMatch);\
-    if (iter != mProxies.end())\
+    if (iter == mProxies.end())\
     {\
-        JSLOG(error,"Error in " #errorWhere "of JSVisibleManager.  Should have received a createProxy call for sporef before an updateLocation.  Adding element in case.");\
+        JSLOG(error,"Error in " #errorWhere "of JSVisibleManager.  Should have received a createProxy call for sporef before an update.  Adding element in case.");\
 \
         nameProxy =JSProxyPtr(new JSProxyData(emerScript)); \
         mProxies[nameToMatch] = JSProxyWPtr(nameProxy); \
