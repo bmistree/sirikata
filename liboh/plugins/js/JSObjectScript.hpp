@@ -47,14 +47,14 @@
 
 #include "JSPattern.hpp"
 #include "JSObjectStructs/JSEventHandlerStruct.hpp"
-#include "JSObjectScriptManager.hpp"
-#include "JSObjectStructs/JSPresenceStruct.hpp"
 #include <sirikata/proxyobject/ProxyCreationListener.hpp>
 #include "JSObjects/JSInvokableObject.hpp"
-#include "JSVisibleStructMonitor.hpp"
 #include "JSEntityCreateInfo.hpp"
 #include <sirikata/oh/Storage.hpp>
 #include <sirikata/oh/PersistedObjectSet.hpp>
+#include "JSObjectStructs/JSPresenceStruct.hpp"
+#include "JSObjectStructs/JSContextStruct.hpp"
+#include "JSObjectScriptManager.hpp"
 
 #define EMERSON_RESOURCE_THRESHOLD 10000
 
@@ -62,14 +62,12 @@ namespace Sirikata {
 namespace JS {
 
 
+
 void printException(v8::TryCatch& try_catch);
 
 class JSObjectScript : public ObjectScript
 {
-
 public:
-
-
     JSObjectScript(JSObjectScriptManager* jMan, OH::Storage* storage, OH::PersistedObjectSet* persisted_set, const UUID& internal_id);
     virtual ~JSObjectScript();
 
@@ -81,7 +79,7 @@ public:
 
 
     //this function returns a context with
-    v8::Local<v8::Object> createContext(JSPresenceStruct* presAssociatedWith,SpaceObjectReference* canMessage,bool sendEveryone, bool recvEveryone, bool proxQueries, bool canImport, bool canCreatePres,bool canCreateEnt,bool canEval, JSContextStruct*& internalContextField);
+    v8::Local<v8::Object> createContext(JSPresenceStruct* presAssociatedWith,SpaceObjectReference canMessage,bool sendEveryone, bool recvEveryone, bool proxQueries, bool canImport, bool canCreatePres,bool canCreateEnt,bool canEval, JSContextStruct*& internalContextField);
 
     void initialize(const String& args, const String& script);
 

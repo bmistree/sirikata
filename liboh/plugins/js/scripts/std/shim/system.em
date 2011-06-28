@@ -349,18 +349,6 @@ function PresenceEntry(sporef, presObj)
          return baseSystem.headless();
      };
 
-     /** @function
-      @param string space and object id of a visible object.  
-      
-      @return a visible object with the space and object id contained argument.
-      
-      Throws an exception if string is incorrectly formatted, otherwise returns vis object.
-      */
-      system.createVisible = function(/**String**/strToCreateFrom)
-      {
-          return baseSystem.createVisible.apply(baseSystem,arguments);
-      };
-
       
       /** I an not defining any callback handlers. They can be, if required */
       /** Since these functions are not getting added to the prototype of the system object, it will generate static functions */
