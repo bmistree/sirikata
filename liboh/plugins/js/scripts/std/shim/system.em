@@ -613,18 +613,27 @@ function PresenceEntry(sporef, presObj)
        @param canCreateEntity can I create entites
        @param canEval can I call eval directly through system object.
 
+       @param canProxCallback can I set proximity callbacks on the presence that is associated with this sbox?
+       @param canProxQuery can I change the proximity query for the presence that is associated with this sbox?
+       @param canCreateSbox can I create more sboxes
+       @param canGui can I create a gui
+       @param canHttp can I issue http requests.
+       
        @see system.canSendMessage
        @see system.canRecvMessage
        @see system.canCreatePresence
        @see system.canCreateEntity
+
        */
-      system.createSandbox = function(/** Presence */ presence, /** Visible */ visible, /** Boolean */ canSendMsg, /** Boolean */ canRecvMsg,
-          /** Boolean */ canProx, /** Boolean */ canImport, /** Boolean */ canCreatePresence, /** Boolean */ canCreateEntity,
-          /** Boolean */ canEval)
+      system.__createSandbox = function()
       {
           return baseSystem.create_context.apply(baseSystem, arguments);
       };
 
+
+
+     
+     
 
      /**@ignore
       Runs through presences array, and determines if should add presConn to that array
