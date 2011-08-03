@@ -1319,60 +1319,83 @@ msgRecvConstructNoIn returns [const char* genText]
 msgConstructNoIn returns [const char* genText]
 @init
 {
-I am hereeeeeeeee!
-        lkjs;
+        $genText ="";
 }
         : msgSenderConstructNoIn
+          {
+             strcat($genText, $msgSenderConstructNoIn.genText);
+          }
         | ^(SEND_CONSTRUCT_NO_IN
             {
                 APP("std.messaging.sendSyntax(");
             }
             msgConstructNoIn
             {
+                strcat($genText,$msgConstructNoIn.genText);
                 APP(",");
             }
             msgSenderConstructNoIn
             {
+                strcat($genText,$msgConstructNoIn.genText);
                 APP(")");
             }
            )
         ;
          
 
-msgSenderConstructNoIn
+msgSenderConstructNoIn returns [const char* genText]
+@init
+{
+        $genText= "";
+}
         :  ternaryExpressionNoIn
+           {
+                strcat($genText,$ternaryExpressionNoIn.genText);
+           }
         | ^(SENDER_CONSTRUCT_NO_IN
             {
                 APP("std.messaging.SenderMessagePair(");
             }
             msgSenderConstructNoIn
             {
+                strcat($genText,$msgSenderConstructNoIn.genText);
                 APP(",");
             }
             ternaryExpressionNoIn
             {
+                strcat($genText,$ternaryExpressionNoIn.genText);
                 APP(")");
             }
            )
         ;
 
 
-ternaryExpressionNoIn
+ternaryExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
         : logicalORExpressionNoIn
+          {
+             strcat($genText,$logicalORExpressionNoIn.genText);
+          }
         | ^(TERNARYOP_NO_IN
             {
                 APP( " ( ");
             }
             ternaryExpressionNoIn
             {
+                strcat($genText,$ternaryExpressionNoIn.genText);
                 APP( " ) ? ( ");
             }
             assignmentExpressionNoIn
             {
+                strcat($genText,$assignmentExpressionNoIn.genText);
                 APP(" ) : ( ");
             }
             assignmentExpressionNoIn
             {
+                strcat($genText,$assignmentExpressionNoIn.genText);
                 APP(" ) " );
             }
            )
@@ -1381,70 +1404,253 @@ ternaryExpressionNoIn
 
 
 
-logicalANDExpression
+logicalANDExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: bitwiseORExpression
-	|^(AND logicalANDExpression { APP(" && ");} bitwiseORExpression)
+          {
+              strcat($genText,$bitwiseORExpression.genText);
+          }
+	|^(AND
+            logicalANDExpression
+            {
+                strcat($genText,$logicalANDExpression.genText);
+                APP(" && ");
+            }
+            bitwiseORExpression
+            {
+                strcat($genText,$bitwiseORExpression.genText);
+            }
+
+          )
 	;
 
 
-logicalORExpression
+logicalORExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: logicalANDExpression
-	|^(OR logicalORExpression { APP(" || "); } logicalANDExpression)
+          {
+            strcat($genText,$logicalANDExpression.genText);
+          }
+	|^(OR
+            logicalORExpression
+            {
+                strcat($genText,$logicalORExpression.genText);
+                APP(" || ");
+            }
+            logicalANDExpression
+            {
+                strcat($genText,$logicalANDExpression.genText);
+            }
+          )
 	;
 	
-logicalORExpressionNoIn
+logicalORExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: logicalANDExpressionNoIn
-	|^(OR logicalORExpressionNoIn{ APP(" || ");}logicalANDExpressionNoIn) 
+          {
+                strcat($genText,$logicalANDExpressionNoIn.genText);
+          }
+	|^(OR
+            logicalORExpressionNoIn
+            {
+                strcat($genText,$logicalORExpressionNoIn.genText);
+                APP(" || ");
+            }
+            logicalANDExpressionNoIn
+            {
+                strcat($genText,$logicalANDExpressionNoIn.genText);
+            }
+          ) 
 	;
 	
 
-logicalANDExpressionNoIn
-	: bitwiseORExpressionNoIn 
-	|^(AND logicalANDExpressionNoIn {APP(" && ");} bitwiseORExpressionNoIn) 
+logicalANDExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+	: bitwiseORExpressionNoIn
+          {
+                strcat($genText,$bitwiseORExpressionNoIn.genText);
+          }
+	|^(AND
+            logicalANDExpressionNoIn
+            {
+                strcat($genText,$logicalANDExpressionNoIn.genText);
+                APP(" && ");
+            }
+            bitwiseORExpressionNoIn
+            {
+                strcat($genText,$bitwiseORExpressionNoIn.genText);
+            }
+          ) 
 	;
 	
-bitwiseORExpression
-	: bitwiseXORExpression 
-	|^(BIT_OR bitwiseORExpression { APP(" | "); } bitwiseXORExpression)
+bitwiseORExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+	: bitwiseXORExpression
+          {
+                strcat($genText,$bitwiseXORExpression.genText);
+          }
+	|^(BIT_OR
+            bitwiseORExpression
+            {
+                strcat($genText,$bitwiseORExpression.genText);
+                APP(" | ");
+            }
+            bitwiseXORExpression
+            {
+                strcat($genText,$bitwiseXORExpression.genText);
+            }
+          )
 	;
 	
-bitwiseORExpressionNoIn
-	: bitwiseXORExpressionNoIn 
-	|^( BIT_OR bitwiseORExpressionNoIn {  APP(" | ");} bitwiseXORExpressionNoIn)
+bitwiseORExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+	: bitwiseXORExpressionNoIn
+          {
+                strcat($genText,$bitwiseXORExpressionNoIn.genText);
+          }
+	|^( BIT_OR
+            bitwiseORExpressionNoIn
+            {
+                strcat($genText,$bitwiseORExpressionNoIn.genText);
+                APP(" | ");
+            }
+            bitwiseXORExpressionNoIn
+            {
+                strcat($genText,$bitwiseXORExpressionNoIn.genText);
+            }
+          )
 	;
 	
-bitwiseXORExpression
-: bitwiseANDExpression 
-| ^( EXP e=bitwiseXORExpression { APP(" ^ ");} bitwiseANDExpression)
-;
+bitwiseXORExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+        : bitwiseANDExpression
+          {
+                strcat($genText,$bitwiseANDExpression.genText);
+          }
+        | ^( EXP
+             e=bitwiseXORExpression
+             {
+                strcat($genText,$bitwiseXORExpression.genText);
+                APP(" ^ ");
+             }
+             bitwiseANDExpression
+             {
+                strcat($genText,$bitwiseANDExpression.genText);
+             }
+           )
+        ;
 	
-bitwiseXORExpressionNoIn
+bitwiseXORExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText= "";
+}
 	: bitwiseANDExpressionNoIn
-	|^( EXP e=bitwiseXORExpressionNoIn { APP(" ^ ");}bitwiseANDExpressionNoIn) 
+          {
+                strcat($genText,bitwiseANDExpressionNoIn.genText);
+          }
+	|^(EXP
+            e=bitwiseXORExpressionNoIn
+            {
+                strcat($genText,$bitwiseXORExpressionNoIn);
+                APP(" ^ ");
+            }
+            bitwiseANDExpressionNoIn
+            {
+                strcat($genText,$bitwiseANDExpressionNoIn);
+            }
+          ) 
 	;
-	
-bitwiseANDExpression
+
+        
+bitwiseANDExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: equalityExpression
-	| ^(BIT_AND e=bitwiseANDExpression { APP(" & ");} equalityExpression) 
+          {
+                strcat($genText,$equalityExpression.genText);
+          }
+	| ^(BIT_AND
+            e=bitwiseANDExpression
+            {
+                strcat($genText,$bitwiseANDExpression.genText);
+                APP(" & ");
+            }
+            equalityExpression
+            {
+                strcat($genText,$equalityExpression.genText);
+            }
+           ) 
 	;
-	
-bitwiseANDExpressionNoIn
-	: equalityExpressionNoIn 
-	| ^(BIT_AND e=bitwiseANDExpressionNoIn { APP(" & ");} equalityExpressionNoIn)
+
+        
+bitwiseANDExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+	: equalityExpressionNoIn
+          {
+                strcat($genText,equalityExpressionNoIn.genText);
+          }
+	| ^(BIT_AND
+            e=bitwiseANDExpressionNoIn
+            {
+                strcat($genText,bitwiseANDExpressionNoIn.genText);
+                APP(" & ");
+            }
+            equalityExpressionNoIn
+            {
+                strcat($genText,equalityExpressionNoIn.genText);
+            }
+           )
 	;
-	
-equalityExpression
+
+        
+equalityExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: relationalExpression
+          {
+                strcat($genText,$relationalExpression.genText);
+          }
         | ^(EQUALS
             {
                 APP(" util.equal( ");
             }
             e=equalityExpression
             {
+                strcat($genText,$equalityExpression.genText);
                 APP(",");
             }
             relationalExpression
             {
+                strcat($genText,$relationalExpression.genText);
                 APP(")");
             }
            )
@@ -1454,10 +1660,12 @@ equalityExpression
             }
             e=equalityExpression
             {
+                strcat($genText,$equalityExpression.genText);
                 APP(" , ");
             }
             relationalExpression
             {
+                strcat($genText,$relationalExpression.genText);
                 APP(")");
             }
            )
@@ -1467,10 +1675,12 @@ equalityExpression
             }
             e=equalityExpression
             {
+                strcat($genText,$equalityExpression.genText);
                 APP(" , ");
             }
             relationalExpression
             {
+                strcat($genText,$relationalExpression.genText);
                 APP(")");
             }
            )
@@ -1480,27 +1690,38 @@ equalityExpression
             }
             e=equalityExpression
             {
+                strcat($genText,$equalityExpression.genText);
                 APP(" , ");
             }
             relationalExpression
             {
+                strcat($genText,$relationalExpression.genText);
                 APP(")");
             }
            )
 ;
 
-equalityExpressionNoIn
+equalityExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 : relationalExpressionNoIn
+  {
+        strcat($genText, $relationalExpressionNoIn.genText);
+  }
   | ^(EQUALS
       {
           APP(" util.equal( ");        
       }
       equalityExpressionNoIn
       {
+          strcat($genText,$equalityExpressionNoIn.genText);
           APP(" , ");
       }
       relationalExpressionNoIn
       {
+          strcat($genText,$relationalExpressionNoIn.genText);
           APP(")");
       }
      )
@@ -1510,10 +1731,12 @@ equalityExpressionNoIn
       }
       equalityExpressionNoIn
       {
+          strcat($genText,$equalityExpressionNoIn.genText);
           APP(" != ");
       }
       relationalExpressionNoIn
       {
+          strcat($genText,$relationalExpressionNoIn.genText);
           APP(")");      
       }
      )
@@ -1523,10 +1746,12 @@ equalityExpressionNoIn
       }
       equalityExpressionNoIn
       {
+          strcat($genText,$equalityExpressionNoIn.genText);
           APP(" , ");
       }
       relationalExpressionNoIn
       {
+          strcat($genText,$relationalExpressionNoIn.genText);
           APP(")");
       }
      )
@@ -1536,17 +1761,19 @@ equalityExpressionNoIn
       }
       equalityExpressionNoIn
       {
+         strcat($genText,$equalityExpressionNoIn.genText);
          APP(" , ");
       }
       relationalExpressionNoIn
       {
+         strcat($genText,$equalityExpressionNoIn.genText);
          APP(" )");
       }
      )
 ;
 	
 
-relationalOps
+relationalOps 
 : LESS_THAN {   $relationalExpression::op = "<" ;}
 | GREATER_THAN { $relationalExpression::op = ">" ;}
 | LESS_THAN_EQUAL {$relationalExpression::op = "<=" ;} 
@@ -1555,24 +1782,34 @@ relationalOps
 | IN {$relationalExpression::op = "in" ;} 
 ;
 
-relationalExpression
+relationalExpression returns [const char* genText]
 scope
 {
   const char* op;
 }
-
-	: additiveExpression 
+@init
+{
+        $genText = "";
+}
+	: additiveExpression
+          {
+             strcat($genText,$additiveExpression.genText);
+          }
 	| 
 	^(
 	   relationalOps 
-				e=relationalExpression
-				{
-				  APP(" ");
-				  APP($relationalExpression::op );
-				  APP(" ");
-				}
-				additiveExpression
-			) 
+           e=relationalExpression
+	   {
+                strcat($genText,$relationalExpression.genText);
+                APP(" ");
+                APP($relationalExpression::op );
+                APP(" ");
+           }
+	   additiveExpression
+           {
+                strcat($genText,$additiveExpression.genText);
+           }
+	 ) 
 	;
 
 relationalOpsNoIn
@@ -1583,41 +1820,59 @@ relationalOpsNoIn
 | INSTANCE_OF    { $relationalExpressionNoIn::op = "instanceOf" ;}
 ;
 
-relationalExpressionNoIn
+relationalExpressionNoIn returns [const char* genText]
 scope
 {
   const char* op;
 }
-
-	: additiveExpression 
-	| 	^(
+@init
+{
+        $genText = "";
+}
+        : additiveExpression
+          {
+                strcat($genText,$additiveExpression.genText);
+          }
+	| ^(
 	     relationalOpsNoIn
-						relationalExpressionNoIn
-						{
-						  APP(" ");
-						  APP($relationalExpressionNoIn::op);
-						  APP(" ");
-						}
-						additiveExpression
-				)
-	   
-	;
+	     relationalExpressionNoIn
+	     {
+                strcat($genText,$relationalExpressionNoIn.genText);
+                APP(" ");
+		APP($relationalExpressionNoIn::op);
+		APP(" ");
+             }
+	     additiveExpression
+             {
+                strcat($genText,$additiveExpression.genText);
+             }
+	   )
+        ;
 
 
 
 
-additiveExpression
+additiveExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
         : multiplicativeExpression
+          {
+                strcat($genText,$multiplicativeExpression.genText);
+          }
         | ^(ADD_OP 
              {
                 APP("  util.plus( " );
              }
              e1=additiveExpression
              {
+                strcat($genText,$additiveExpression.genText);
                 APP(" , ");
              }
              multiplicativeExpression
              {
+                strcat($genText,$multiplicativeExpression.genText);
                 APP( " ) ");
              }
             ) 
@@ -1627,28 +1882,39 @@ additiveExpression
             }
              e1=additiveExpression 
              {
+                strcat($genText,$additiveExpression.genText);
                 APP(" , ");
              }
              multiplicativeExpression
              {
+                strcat($genText,$multiplicativeExpression.genText);
                 APP(" ) ");
              }
             ) 
 	;
 
 
-multiplicativeExpression
+multiplicativeExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
         : unaryExpression
+          {
+                strcat($genText,$unaryExpression.genText);
+          }
         | ^( MULT
              {
                 APP(" util.mul( ");
              } 
              multiplicativeExpression 
              {
+                strcat($genText,$multiplicativeExpression.genText);
                 APP(" , ");
              }
              unaryExpression
              {
+                strcat($genText,$unaryExpression.genText);
                 APP(" ) ");
              }
             )
@@ -1658,10 +1924,12 @@ multiplicativeExpression
             }
             multiplicativeExpression
             {
+                strcat($genText,$multiplicativeExpression.genText);
                 APP(" , ");
             }
             unaryExpression
             {
+                strcat($genText,$unaryExpression.genText);
                 APP(" ) ");
             }
            )
