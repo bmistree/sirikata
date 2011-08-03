@@ -37,6 +37,7 @@ options
                     numNewlines++; \
             program_string->append(program_string, str); \
             current_line += numNewlines; \
+            strcat(retval.genText,s);\
         }
 
     #define LINE_DEBUG 0
@@ -70,7 +71,6 @@ options
     APP("\nif ( system.__isKilling() )\n");  \
     APP("{ \nthrow new Error('__killing__'); \n}\n");   \
     }
-
 
     
     #ifndef __SIRIKATA_INSIDE_WHEN_PRED__
@@ -561,49 +561,7 @@ caseBlock
     )
     ;
 
-    
-// caseClause
-//     : ^( CASE
-//         {
-//             APP("case ");
-//         }
-//         expression
-//         {
-//             APP(":");
-//         }
-//         statementList?
-//         caseClause?
-//         )
-//     | ^( CASE
-//         {
-//             APP("case ");
-//         }
-//         expression
-//         {
-//             APP(":");
-//         }
-//         statementList?
-//         defaultClause
-//        )
-//     ;
-
-
-
-// caseClauseSeenDefault
-//     : ^( CASE
-//         {
-//             APP("case ");
-//         }
-//         expression
-//         {
-//             APP(":");
-//         }
-//         statementList?
-//         caseClauseSeenDefault?
-//         )
-//     ;
-
-
+  
 
 caseClause
     : ^( CASE
@@ -870,59 +828,236 @@ scope
           ;
 
        
-leftHandSideExpression
+leftHandSideExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: callExpression
+          {
+             strcat($genText, $callExpression.genText);
+          }
 	| newExpression
+          {
+             strcat($genText, $newExpression.genText);
+          }
 	;
 	
-newExpression
+newExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: memberExpression
-	| ^( NEW newExpression)
+        {
+            strcat($genText,$memberExpression.genText);
+        }
+	| ^(
+            NEW
+            newExpression
+            {
+                strcat($genText,$newExpression.genText);
+            }
+           )
 	;
         
         
-propertyReferenceSuffix1
-: Identifier { LINE($Identifier.line); APP((const char*)$Identifier.text->chars);} 
+propertyReferenceSuffix1 returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+        : Identifier
+          {
+            LINE($Identifier.line);
+            APP((const char*)$Identifier.text->chars);
+          } 
 ;
 
-indexSuffix1
-: expression
+
+indexSuffix1 returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+        : expression
+          {
+            strcat($genText,$expression.genText);
+          }
 ;
 
-memberExpression
-: primaryExpression
-|functionExpression
-| ^(DOT memberExpression { LINE($DOT.line); APP("."); } propertyReferenceSuffix1 )
-| ^(ARRAY_INDEX memberExpression { LINE($ARRAY_INDEX.line); APP("[ "); } indexSuffix1 { APP(" ] "); })
-| ^(NEW { LINE($NEW.line); APP("new "); } memberExpression arguments)
-| ^(DOT { LINE($DOT.line); APP(".");} memberExpression)
+
+
+memberExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+        : primaryExpression
+          {
+            strcat($genText,$primaryExpression.genText);
+          }
+        | functionExpression
+          {
+            strcat($genText,$functionExpression.genText);
+          }
+        | ^(
+            DOT
+            memberExpression
+            {
+                strcat($genText,$memberExpression.genText);
+                LINE($DOT.line);
+                APP(".");
+            }
+            propertyReferenceSuffix1
+            {
+                strcat($genText,$propertyReferenceSuffix1.genText);
+            }
+           )
+       |  ^(
+            ARRAY_INDEX
+            memberExpression
+            {
+                strcat($genText,$memberExpression.genText);
+                LINE($ARRAY_INDEX.line);
+                APP("[ ");
+            }
+            indexSuffix1
+            {
+                strcat($genText,$indexSuffix1.genText);
+                APP(" ] ");
+            }
+           )
+       | ^(
+            NEW
+            {
+                LINE($NEW.line);
+                APP("new ");
+            }
+            memberExpression
+            {
+                strcat($genText,$memberExpression.genText);
+            }
+            arguments
+            {
+                strcat($genText,$arguments.genText);
+            }
+          )
+      | ^(
+            DOT
+            {
+                LINE($DOT.line);
+                APP(".");
+            }
+            memberExpression
+            {
+                strcat($genText,$memberExpression.genText);
+            }
+         )
 ;
 
-memberExpressionSuffix
+memberExpressionSuffix returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: indexSuffix
-	| propertyReferenceSuffix 
-	;
-
-callExpression
- : ^(CALL memberExpression arguments) 
- | ^(ARRAY_INDEX callExpression { LINE($ARRAY_INDEX.line); APP("[ "); } indexSuffix1 { APP(" ]"); })
- | ^(DOT callExpression { LINE($DOT.line); APP(".");} propertyReferenceSuffix1)
- | ^(CALL callExpression arguments)
-;
-	
-
-
-callExpressionSuffix
-	: arguments
-	| indexSuffix
+          {
+            strcat($genText,$indexSuffix.genText);
+          }
 	| propertyReferenceSuffix
+          {
+            strcat($genText,$propertyReferenceSuffix);
+          }
 	;
 
-arguments
+callExpression returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+        : ^(CALL
+            memberExpression
+            {
+                strcat($genText,$memberExpression.genText);
+            }
+            arguments
+            {
+                strcat($genText,$arguments.genText);
+            }
+           ) 
+        | ^(ARRAY_INDEX
+            callExpression
+            {
+                strcat($genText,$callExpression.genText);
+                LINE($ARRAY_INDEX.line);
+                APP("[ ");
+            }
+            indexSuffix1
+            {
+                strcat($genText,$indexSuffix1.genText);
+                APP(" ]");
+            }
+           )
+        | ^(DOT
+            callExpression
+            {
+                strcat($genText,$callExpression.genText);
+                LINE($DOT.line);
+                APP(".");
+            }
+            propertyReferenceSuffix1
+            {
+                strcat($genText,$propertyReferenceSuffix1.genText);
+            }
+           )
+        | ^(CALL
+            callExpression
+            {
+                strcat($genText,$callExpression.genText);
+            }
+            arguments
+            {
+                strcat($genText,$arguments.genText);
+            }
+           )
+;
+
+
+
+callExpressionSuffix returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+	: arguments
+          {
+             strcat($genText,$arguments.genText);
+          }
+	| indexSuffix
+          {
+             strcat($genText,$indexSuffix.genText);
+          }
+	| propertyReferenceSuffix
+          {
+             strcat($genText,$propertyReferenceSuffix.genText);
+          }
+	;
+
+arguments returns [const char* genText]
+@init
+{
+        $genText = "";
+}
   : ^(ARGLIST { LINE($ARGLIST.line);  APP("( )"); })
   | ^(ARGLIST 
        { LINE($ARGLIST.line); APP("( "); }
-       (expression)
+       (
+        expression
+        {
+             strcat($genText,$expression.genText);
+        }
+       )
        { APP(" )"); }
      )
 
@@ -933,9 +1068,13 @@ arguments
       expression
       (
         {
+            strcat($genText,$expression.genText);    
             APP(", ");
         }
         expression
+        {
+            strcat($genText,$expression.genText);
+        }
       )*
       {
         APP(" ) ");
@@ -944,42 +1083,86 @@ arguments
     ;
  
 
-indexSuffix
-	: ^(ARRAY_INDEX expression)
+indexSuffix returns [const char* genText]
+@init
+{
+        $genText = "";
+}
+	: ^(ARRAY_INDEX
+            expression
+            {
+                strcat($genText,$expression.genText);
+            }
+           )
 	;	
 	
-propertyReferenceSuffix
+propertyReferenceSuffix returns [const char* genText]
+@init
+{
+        $genText = "";
+        //lkjs note: I found this propertyReferenceSuffix without
+        //printing its identifier.  Could be an error.
+}
 	: ^(DOT Identifier)
 	;
-	
-assignmentOperator
+
+assignmentOperator returns [const char* genText]
+@init
+{
+        $genText = "";
+}
 	: ASSIGN|MULT_ASSIGN|DIV_ASSIGN | MOD_ASSIGN| ADD_ASSIGN | SUB_ASSIGN|AND_ASSIGN|EXP_ASSIGN|OR_ASSIGN
 	;
 
-conditionalExpressionNoIn
+conditionalExpressionNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
         : msgRecvConstructNoIn
+          {
+            strcat($genText,$msgRecvConstructNoIn.genText);
+          }
         ;
 
-conditionalExpression
+conditionalExpression returns [const char* genText]
+@init
+{
+        $genText =  "";
+}
         : msgRecvConstruct
+          {
+            strcat($genText,$msgRecvConstruct.genText);
+          }
         ;
+
         
-msgRecvConstruct
+msgRecvConstruct returns [const char* genText]
+@init
+{
+        $genText = "";
+}
         : msgConstruct
+          {
+            strcat($genText,$msgConstruct.genText);
+          }
         | ^(MESSAGE_RECV_AND_SENDER
             {
                APP("system.registerHandler( ");
             }
             msgRecvConstruct
             {
+                strcat($genText,$msgRecvConstruct.genText);
                 APP(",");
             }
             msgConstruct
             {
+                strcat($genText,$msgConstruct.genText);
                 APP(",");
             }
             msgConstruct
             {
+                strcat($genText,$msgConstruct.genText);
                 APP(")");
             }
            )
@@ -989,91 +1172,129 @@ msgRecvConstruct
             }
             msgRecvConstruct
             {
+                strcat($genText,$msgRecvConstruct.genText);
                 APP(",");
             }
             msgConstruct
             {
+                strcat($genText,$msgConstruct.genText);
                 APP(", null)");
             }
            )
          ;
 
-msgConstruct
+msgConstruct returns [const char* genText]
+@init
+{
+        genText = "";
+}
         : msgSenderConstruct
+          {
+            strcat($genText, $msgSenderConstrcut.genText);
+          }
         | ^(SEND_CONSTRUCT
             {
                 APP("std.messaging.sendSyntax(");
             }
             msgConstruct
             {
+                strcat($genText,$msgConstruct.genText);
                 APP(",");
             }
             msgSenderConstruct
             {
+                strcat($genText,$msgSenderConstruct.genText);
                 APP(")");
             }
            )
         ;
          
 
-msgSenderConstruct
+msgSenderConstruct returns [const char* genText]
+@init
+{
+        genText = "";
+}
         :  ternaryExpression
+           {
+                strcat($genText,$ternaryExpression.genText);
+           }
         | ^(SENDER_CONSTRUCT
             {
                 APP("std.messaging.SenderMessagePair(");
             }
             msgSenderConstruct
             {
+                strcat($genText,$msgSenderConstruct.genText);
                 APP(",");
             }
             ternaryExpression
             {
+                strcat($genText,$ternaryExpression);
                 APP(")");
             }
            )
         ;
 
          
-ternaryExpression
+ternaryExpression returns [const char* genText]
+@init
+{
+        genText = "";
+}
         : logicalORExpression
+          {
+            strcat($genText,$logicalORExpression.genText);
+          }
         | ^(TERNARYOP
             {
                 APP( " ( ");
             }
             ternaryExpression
             {
+                strcat($genText,$ternaryExpression.genText);
                 APP( " ) ? ( ");
             }
-            //logicalORExpression
             assignmentExpression
             {
+                strcat($genText,$assignmentExpression.genText);
                 APP(" ) : ( ");
             }
-            //logicalORExpression
             assignmentExpression
             {
+                strcat($genText,$assignmentExpression.genText); 
                 APP(" ) " );
             }
            )
         ;
 
          
-msgRecvConstructNoIn
+msgRecvConstructNoIn returns [const char* genText]
+@init
+{
+        $genText = "";
+}
         : msgConstructNoIn
+          {
+                strcat($genText,$msgConstructNoIn.genText);
+          }
         | ^(MESSAGE_RECV_AND_SENDER_NO_IN
             {
                APP("system.registerHandler( ");
             }
             msgRecvConstructNoIn
             {
+                strcat($genText,$msgRecvConstructNoIn.genText);
                 APP(",");
             }
             msgConstructNoIn
             {
+                strcat($genText,$msgConstructNoIn.genText);
                 APP(",");
             }
             msgConstructNoIn
             {
+                strcat($genText,$msgConstructNoIn.genText);
                 APP(")");
             }
            )
@@ -1083,17 +1304,24 @@ msgRecvConstructNoIn
             }
             msgRecvConstructNoIn
             {
+                strcat($genText,$msgRecvConstructNoIn.genText);
                 APP(",");
             }
             msgConstructNoIn
             {
+                strcat($genText,$msgConstructNoIn);
                 APP(", null)");
             }
            )
          ;
 
 
-msgConstructNoIn
+msgConstructNoIn returns [const char* genText]
+@init
+{
+I am hereeeeeeeee!
+        lkjs;
+}
         : msgSenderConstructNoIn
         | ^(SEND_CONSTRUCT_NO_IN
             {
