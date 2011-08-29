@@ -243,20 +243,30 @@ noOpStatement
         ;
     
 statementBlock
-	: {APP(" {\n "); } statementList {  
-            APP(" }\n");
-        }
+	: {
+             APP(" {\n ");
+          }
+          statementList?
+          {  
+             APP(" }\n");
+          }
 	;
 	
 statementList
-	:  ^(
+	: ^(
             SLIST 
-            (statement
+            statement
+            {
+               APP("; \n");					  
+            }
+            (
+                statement
                 {
-			        APP("; \n");					  
+                    APP("; \n");
                 }
             )*
-	    );
+           )
+	 ;
 	
 variableStatement
 	:  ^( 

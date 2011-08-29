@@ -191,17 +191,20 @@ statement
 	;
 	
 statementBlock
-        : '{' LTERM* '}'   -> ^(NOOP)
-	| '{' LTERM* (statementList->statementList) LTERM* '}' 
+	: '{' LTERM* statementList? LTERM* '}' 
 	; 
 
 noOpStatement
         : ';' -> ^(NOOP)
         ;
         
+emptyStatement
+        : LTERM* ';'
+	;
+
         
 statementList
-	: (LTERM* statement)+ -> ^(SLIST statement+)
+	: statement (LTERM* statement)* -> ^(SLIST statement statement*)
 	;
 	
 variableStatement
@@ -232,9 +235,6 @@ initialiserNoIn
 	: '=' LTERM* expressionNoIn -> expressionNoIn
 	;
 	
-emptyStatement
-        : LTERM* ';'
-	;
 	
 expressionStatement
 	: expression (LTERM | ';') -> expression
@@ -342,6 +342,7 @@ catchBlock
         : 'catch' LTERM* '(' LTERM* Identifier LTERM* ')' LTERM* statementBlock -> ^(CATCH Identifier statementBlock )
         ;
 
+        
 finallyBlock
         : 'finally' LTERM*  statementBlock  -> ^(FINALLY statementBlock)
         ;
