@@ -10,7 +10,7 @@ system.require('hawthorneApps/im/convGUI.em');
     var CONNECTED_CONV             =  1;
     var OTHER_SIDE_NON_RESPONSIVE  =  2;
     
-    var REGISTRATION_TIMEOUT       = 10;
+    var REGISTRATION_TIMEOUT       = 20;
     var MESSAGE_TIMEOUT            =  5;
 
 
@@ -34,15 +34,15 @@ system.require('hawthorneApps/im/convGUI.em');
         this.vis        = vis;
         this.appGui     = appGui;
         //starts out not in a conversation with friend
-        this.convGui    = null;
+        this.convGUI    = null;
 
         //friendID: note maybe could just use the visible id.
         this.imID       = imID;
         
-        this.statusToFriend = this.appGui.getStatusPresenting(groupName);
+        this.statusToFriend = this.appGui.getStatusPresenting(this.imID);
         this.statusFromFriend  = "Registering";
 
-        this.profileToFriend = this.appGui.getProfilePresenting(groupName);
+        this.profileToFriend = this.appGui.getProfilePresenting(this.imID);
         this.profileFromFriend = "Registering";
         
         this.topicsDiscussed = [];
@@ -58,6 +58,20 @@ system.require('hawthorneApps/im/convGUI.em');
 
 
     /**
+     @param {message object} msg from sender corresponding to this.vis.
+     Replies with a message that should satisfy regResponseMsg.
+     */
+    Friend.prototype.processRegReqMsg = function (msg)
+    {
+        var replyPart = {
+            'status':  this.statusToFriend,
+            'profile': this.profileToFriend
+        };
+        msg.makeReply(replyPart) >> [];
+    };
+
+
+    /**
      Called when do not receive a response for a registration message
      from within @see Friend.prototype.beginRegistration.
      */
@@ -66,6 +80,7 @@ system.require('hawthorneApps/im/convGUI.em');
         this.connStatus = OTHER_SIDE_NON_RESPONSIVE;
         this.appGui.display(this.imID);
     }
+
 
     /**
      Called when receive a response for a registration message from
@@ -77,7 +92,7 @@ system.require('hawthorneApps/im/convGUI.em');
         {
             //registration response message was correctly formatted
             //and accepted.
-            this.connStatus = CONNECTED_NO_CONV;
+            this.connStatus = CONNECTED_CONV;
             this.statusFromFriend = IMUtil.htmlEscape(msg.status);
             this.profileFromFriend = IMUtil.htmlEscape(msg.profile);
             this.appGui.display(this.imID);
@@ -128,13 +143,13 @@ system.require('hawthorneApps/im/convGUI.em');
 
     };
 
-
+    
     /**
      Called when we send a chat message to a friend, and the friend
      does not acknowledge it.  Called from @see
      Friend.prototype.msgToFriend.
      */
-    function msgUnacked()
+    function msgUnacked(msgToSend)
     {
         if (this.convGUI !== null)
         {
@@ -180,19 +195,19 @@ system.require('hawthorneApps/im/convGUI.em');
         //if we do not already have a pre-existing conversation, then
         //create a conversation gui
         if (this.convGUI === null)
-            this.convGUI = new ConvGUI(this.name);
+            this.convGUI = new ConvGUI(this.name);                
+
 
         //output to the conversation gui.
         this.convGUI.writeMe(IMUtil.htmlEscape(msgToSend));
 
         var wrappedMsgUnacked = std.core.bind(
-            msgUnacked,this);
-    
+            msgUnacked,this,msgToSend);
+        
         //send the message to the other side & output it to
         //conversation gui
         {'imMsg': msgToSend} >> this.vis >>
-            [ function(){},MESSAGE_TIMEOUT,msgUnacked];
-
+            [ function(){},MESSAGE_TIMEOUT,wrappedMsgUnacked];
     };
 
     /**
@@ -241,6 +256,9 @@ system.require('hawthorneApps/im/convGUI.em');
             
         //output to the conversation gui.
         this.convGUI.writeFriend(IMUtil.htmlEscape(msg.imMsg));
+
+        //send ack back to other side.
+        msg.makeReply({'imMsgAck': 1}) >> [];
     }
 
     /**
