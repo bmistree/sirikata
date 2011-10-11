@@ -1,5 +1,5 @@
 system.require('hawthorneApps/im/friend.em');
-
+system.require('hawthorneApps/im/imUtil.em');
 
 (function()
  {
@@ -9,42 +9,116 @@ system.require('hawthorneApps/im/friend.em');
 
      
      var proxHandler = null;
+     var requestHandler = null;
+
+
+     /**
+      @param {visible} potentialFriend
+
+      don't add them as friend unless they aren't already your friend,
+      they aren't you, and the user gives permission to add them.
+      (For now, skipping user-asking part.)
+      */
+     function tryAddFriend(potentialFriend)
+     {
+         system.__debugPrint('\n\nAttempting to add friend in tryAddFriend of appGui.em\n\n');
+         
+         if ((potentialFriend.toString() in visIDToFriendMap) ||
+             (potentialFriend.toString() == system.self.toString()))
+             return null;
+
+         //ask user if he/she wants to add the friend.
+
+         //for now, automatically add as friend.  Automatically name
+         //friend as well fname
+         var friendToAdd =
+             new Friend('fname', potentialFriend, this, IMUtil.getUniqueInt());
+         
+         visIDToFriendMap[potentialFriend.toString()] = friendToAdd;
+         imIDToFriendMap [friendToAdd.imID]           = friendToAdd;
+
+         return friendToAdd;
+     }
+
      
      
      AppGui = function()
      {
-         //policy is to try to become friends with everyone around me.
+         var wrappedTryAddFriend = std.core.bind(tryAddFriend,this);
+         
+         //policy is to try to become friends with everyone that I can
+         //see.
          function proxAddedCallback(visAdded)
          {
-             if (visAdded.toString() in allFriends)
-                 return;
-
-             //ask user if he/she wants to add the friend.
-
-             //for now, automatically add as friend.  Automatically name friend as well,
-
-             var friendToAdd = new Friend('friend name', visAdded, this,);             
-             allFriends[visAdded.toString()] = new Friend
-                          
-             lkjs;
+             var newFriend = wrappedTryAddFriend(visAdded);
+             if (newFriend !== null)
+                 system.__debugPrint('Trying to add new friend through prox.');
+                 
          }
 
-         proxHandler = system.onProxAdded(std.core.bind(proxAddedCallback,this));
+         //additional true field indicates to also call handling
+         //function for all visibles that are *currently* within query
+         //range, not just those that get added to result set.
+         proxHandler = system.self.onProxAdded(
+             std.core.bind(proxAddedCallback,this),true);
 
 
-                  
+         //If we receive a registration request, then we check if
+         //we have any friends corresponding to the sender of the
+         //friend request.  If we do, then we ask the friend to
+         //process the request.
+         //If we do not, then, we check if we should add the other
+         //side as a friend.  If we should, we construct a new friend
+         //object, and ask it to handle the registration request.
+         function handleRegRequest(msg, sender)
+         {
+             var friendToProcMsg = null;
+             if (sender.toString() in visIDToFriendMap)
+                 friendToProcMsg = visIDToFriendMap[sender.toString()];
+             else
+                 friendToProcMsg = wrappedTryAddFriend(sender);
+             
+             if (friendToProcMsg !== null)
+                 friendToProcMsg.processRegReqMsg(msg);
+             
+         }
+
+         
+         //actually set the handler for registration requests.
+         requestHandler = std.core.bind(handleRegRequest,this) <<
+             {'imRegRequest'::};
+         
      };
 
      AppGui.prototype.kill = function ()
      {
-         if (proxHandler != null)
+         if (proxHandler !== null)
          {
              proxHandler.clear();
              proxHandler = null;
          }
+         if (requestHandler !== null)
+         {
+             requestHandler.clear();
+             requestHandler = null;
+         }
 
-         for (var s in allFriends)
-             allFriends[s].kill();
+
+         for (var s in imIDToFriendMap)
+             imIDToFriendMap[s].kill();
+
+         imIDToFriendMap  = {};
+         visIDToFriendMap = {};
+
+     };
+
+     /**
+      Will remove this function sooner or later. Right now, I'm just using it for testing.
+      */
+     AppGui.prototype.debugBroadcast = function(toBroadcast)
+     {
+         for (var s in imIDToFriendMap)
+             imIDToFriendMap[s].msgToFriend(toBroadcast);
      };
      
      AppGui.prototype.getStatusPresenting = function()
