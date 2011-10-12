@@ -68,6 +68,11 @@ system.require('hawthorneApps/im/convGUI.em');
             'profile': this.profileToFriend
         };
         msg.makeReply(replyPart) >> [];
+
+        //to ensure that we don't infinitely send registration
+        //messages.
+        if (this.connStatus != CONNECTED_CONV)
+            this.beginRegistration();
     };
 
 
@@ -77,8 +82,14 @@ system.require('hawthorneApps/im/convGUI.em');
      */
     function noRegResponse()
     {
-        this.connStatus = OTHER_SIDE_NON_RESPONSIVE;
-        this.appGui.display(this.imID);
+        //takes care of case where we send two registration requests
+        //(the second after receiving one from the other side), and
+        //the first request times out.
+        if (this.connStatus != CONNECTED_CONV)
+        {
+            this.connStatus = OTHER_SIDE_NON_RESPONSIVE;
+            this.appGui.display(this.imID);                
+        }
     }
 
 
