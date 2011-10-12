@@ -43,7 +43,7 @@ system.require('hawthorneApps/im/imUtil.em');
              this.pendingEvents.push([WARN_EVENT,warnMsg]);
              return;
          }
-         InternalWarn(this,warnMsg);
+         internalWarn(this,warnMsg);
      };
 
      /**
@@ -56,7 +56,7 @@ system.require('hawthorneApps/im/imUtil.em');
              this.pendingEvents.push([WRITE_ME_EVENT,toWrite]);
              return;
          }
-         InternalWriteMe(this,toWrite);
+         internalWriteMe(this,toWrite);
      };
 
      /**
@@ -79,8 +79,10 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      function userInput(whatWrote)
      {
+         IMUtil.dPrint('\n\nThis is what was written by user: ' +
+                       whatWrote+ '\n\n');
+         
          this.friend.msgToFriend(whatWrote);
-         this.writeMe(whatWrote);
      }
 
      /**
@@ -191,12 +193,15 @@ system.require('hawthorneApps/im/imUtil.em');
          
          
         $('<div>' + 
-          '<div id="history" style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
-          '</div>' + //end history
+              '<div id="history" style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
+              '</div>' + //end history
           
-          '<textarea id="tarea" style="width:250px;">' +
-          '</textarea>' + 
-          '</div>' //end upper div
+              '<input value="" id="melvilletarea" style="width:250px;">' +
+              '</input>' +
+
+              '<button id="melvilleChatButton">Enter</button>' +
+          
+          '</div>' //end div at top.
          ).attr({id:'melville-dialog',title:'melville'}).appendTo('body');
 
          var melvilleWindow = new sirikata.ui.window(
@@ -209,6 +214,13 @@ system.require('hawthorneApps/im/imUtil.em');
                 position: 'right'
             }
         );
+
+         sirikata.ui.button('#melvilleChatButton').click(
+             function()
+             {
+                 sirikata.event('userInput',$('#melvilletarea').val());                 
+             }
+         );  
 
          melvilleWindow.show();
          @;
