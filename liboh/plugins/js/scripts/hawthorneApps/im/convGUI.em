@@ -218,7 +218,8 @@ system.require('hawthorneApps/im/imUtil.em');
          sirikata.ui.button('#melvilleChatButton').click(
              function()
              {
-                 sirikata.event('userInput',$('#melvilletarea').val());                 
+                 sirikata.event('userInput',$('#melvilletarea').val());
+                 $('#melvilletarea').val('');
              }
          );  
 
