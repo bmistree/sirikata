@@ -136,9 +136,11 @@ system.require('hawthorneApps/im/imUtil.em');
          system.__debugPrint('Asked to display in app gui.');
      };
 
-     AppGui.prototype.warn = function()
+     AppGui.prototype.warn = function(warningMsg)
      {
-         system.__debugPrint('Asked to warn in app gui.');
+         system.__debugPrint('\n\nAsked to warn in app gui with message:');
+         system.__debugPrint(warningMsg + '\n\n');
+         
      };
 
      AppGui.prototype.remove = function()
