@@ -14,9 +14,15 @@
         return ++uniqueInt;
     }
 
+    function dPrint(toPrint)
+    {
+        system.__debugPrint(toPrint);
+    }
+    
     IMUtil = {
         htmlEscape: htmlEscape,
-        getUniqueInt: getUniqueInt
+        getUniqueInt: getUniqueInt,
+        dPrint: dPrint
     };
 
 })();

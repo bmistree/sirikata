@@ -32,7 +32,7 @@ system.require('hawthorneApps/im/imUtil.em');
          //for now, automatically add as friend.  Automatically name
          //friend as well fname
          var friendToAdd =
-             new Friend('fname', potentialFriend, this, IMUtil.getUniqueInt());
+             new Friend('fnamer', potentialFriend, this, IMUtil.getUniqueInt());
          
          visIDToFriendMap[potentialFriend.toString()] = friendToAdd;
          imIDToFriendMap [friendToAdd.imID]           = friendToAdd;
@@ -146,9 +146,17 @@ system.require('hawthorneApps/im/imUtil.em');
          system.__debugPrint('Asked to remove in app gui.');
      };
 
-     AppGui.prototype.getIsVisibleTo = function()
+     /**
+      @param {unique int} imID identifier for existing Friend.
+
+      Returns true if Friend represented by imID should be able to
+      send messages to me.
+      For now, just returns true.
+      */
+     AppGui.prototype.getIsVisibleTo = function(imID)
      {
-         system.__debugPrint('Asked to getIsVisibleTo in app gui.');  
+         system.__debugPrint('Asked to getIsVisibleTo in app gui.');
+         return true;
      };
      
  })();

@@ -6,6 +6,11 @@ system.require('hawthorneApps/im/imUtil.em');
      var WRITE_ME_EVENT     =      'WRITE_ME_EVENT';
      var WRITE_FRIEND_EVENT =  'WRITE_FRIEND_EVENT';
      var WARN_EVENT         =          'WARN_EVENT';
+
+     function guiName(friendName)
+     {
+         return 'Messaging with '+ friendName;
+     }
      
      
      /**
@@ -14,13 +19,14 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      ConvGUI = function(name,friend)
      {
+         IMUtil.dPrint('\nGot into conv gui constructor.\n');
          this.friendName = name;
          this.friend = friend;
          this.uiID = IMUtil.getUniqueInt();
          this.guiInitialized = false;
          this.pendingEvents = [];
-         this.guiMod = simulator.addGUITextModule(
-             'Messaging with ' + name,
+         this.guiMod = simulator._simulator.addGUITextModule(
+             guiName(name),
              getGUIText(name),
              std.core.bind(guiInitFunc,this)
          );
@@ -37,11 +43,11 @@ system.require('hawthorneApps/im/imUtil.em');
              this.pendingEvents.push([WARN_EVENT,warnMsg]);
              return;
          }
-         internalWarn(warnMsg);
+         InternalWarn(this,warnMsg);
      };
 
      /**
-      Called when user 
+      Called when user enters text into tab that needs to be displayed.
       */
      ConvGUI.prototype.writeMe = function(toWrite)
      {
@@ -50,12 +56,26 @@ system.require('hawthorneApps/im/imUtil.em');
              this.pendingEvents.push([WRITE_ME_EVENT,toWrite]);
              return;
          }
-         internalWriteMe(toWrite);
+         InternalWriteMe(this,toWrite);
      };
 
-
      /**
-      Gets called by js display code when 
+      Called when friend enters text into tab that needs to be displayed.
+      */
+     ConvGUI.prototype.writeFriend = function(toWrite)
+     {
+         if (!this.guiInitialized)
+         {
+             this.pendingEvents.push([WRITE_FRIEND_EVENT,toWrite]);
+             return;
+         }
+         internalWriteFriend(this,toWrite);
+     };
+
+     
+     /**
+      Gets called by js display code when user enters data.  Already
+      bound in guiInitFunc to convGUI.
       */
      function userInput(whatWrote)
      {
@@ -77,11 +97,11 @@ system.require('hawthorneApps/im/imUtil.em');
          for (var s in this.pendingEvents)
          {
              if(this.pendingEvents[s][0] == WRITE_ME_EVENT)
-                 internalWriteMe(this.pendingEvents[s][1]);
+                 internalWriteMe(this,this.pendingEvents[s][1]);
              else if (this.pendingEvents[s][0] == WRITE_FRIEND_EVENT)
-                 internalWriteFriend(this.pendingEvents[s][1]);
+                 internalWriteFriend(this,this.pendingEvents[s][1]);
              else
-                 internalWarn(this.pendingEvents[s][1]);
+                 internalWarn(this,this.pendingEvents[s][1]);
          }
          this.pendingEvents = [];
      }
@@ -89,38 +109,43 @@ system.require('hawthorneApps/im/imUtil.em');
      /**
       @param {string-untainted} toWarnWith
       */
-     function internalWarn(toWarnWith)
+     function internalWarn(convGUI,toWarnWith)
      {
-         this.gui.call('warn',toWarnWith);
+         convGUI.guiMod.call('warn',toWarnWith);
      }
 
      /**
       @param {string-untainted} message
       */
-     function internalWriteFriend(message)
+     function internalWriteFriend(convGUI,message)
      {
-         this.gui.call('writeFriend',message);
+         convGUI.guiMod.call('writeFriend',message);
      }
 
      /**
       @param {string-untainted} message
       */
-     function internalWriteMe(message)
+     function internalWriteMe(convGUI,message)
      {
-         this.gui.call('writeMe',message);
+         IMUtil.dPrint('\n\nGot into internalWriteMe with message: ' +
+                       message +'\n\n');
+         convGUI.guiMod.call('writeMe',message);
      }
 
 
      function getGUIText(friendName)
      {
-         var returner = "sirikata.ui('" + friendName + "',";
+         var returner = "sirikata.ui('" + guiName(friendName) + "',";
          returner += 'function(){ ';
 
 
          returner += 'var FRIEND_NAME  = "'+friendName+'";';
+
+
          
          //fill in guts of function to execute for gui module
          returner += @
+         
          var ME_NAME      = 'me';
          var SYS_NAME     = 'system';
 
@@ -165,14 +190,27 @@ system.require('hawthorneApps/im/imUtil.em');
          }
          
          
-        $('<div id="history" style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
-          '</div>' +
+        $('<div>' + 
+          '<div id="history" style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
+          '</div>' + //end history
           
           '<textarea id="tarea" style="width:250px;">' +
-          '</textarea>'
-         ).appendTo('body');
+          '</textarea>' + 
+          '</div>' //end upper div
+         ).attr({id:'melville-dialog',title:'melville'}).appendTo('body');
 
-         $('#history').append('I got into here');
+         var melvilleWindow = new sirikata.ui.window(
+            '#melville-dialog',
+            {
+	        autoOpen: false,
+	        height: 'auto',
+	        width: 300,
+                height: 400,
+                position: 'right'
+            }
+        );
+
+         melvilleWindow.show();
          @;
          
          
