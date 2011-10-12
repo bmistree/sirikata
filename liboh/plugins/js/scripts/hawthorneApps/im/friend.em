@@ -195,7 +195,7 @@ system.require('hawthorneApps/im/convGUI.em');
         //if we do not already have a pre-existing conversation, then
         //create a conversation gui
         if (this.convGUI === null)
-            this.convGUI = new ConvGUI(this.name);                
+            this.convGUI = new ConvGUI(this.name,this);                
 
 
         //output to the conversation gui.
@@ -252,7 +252,7 @@ system.require('hawthorneApps/im/convGUI.em');
             
         //If we don't already have a conversation gui, create one.
         if (this.convGUI === null)
-            this.convGUI = new ConvGUI(this.name);
+            this.convGUI = new ConvGUI(this.name,this);
             
         //output to the conversation gui.
         this.convGUI.writeFriend(IMUtil.htmlEscape(msg.imMsg));
