@@ -178,6 +178,16 @@ system.require('hawthorneApps/im/convGUI.em');
 
     };
 
+    /**
+     If do not already have a convGUI object for this friend, create
+     one.  Otherwise, do nothing.
+     */
+    Friend.prototype.beginConversation = function()
+    {
+        if (this.convGUI === null)
+            this.convGUI = new ConvGUI(this.name,this);                
+    };
+    
     
     /**
      Called when we send a chat message to a friend, and the friend

@@ -60,13 +60,29 @@ system.require('hawthorneApps/im/group.em');
      }
 
 
-     //lkjs;
+     //"this" is automatically bound to an AppGui object in @see
+     //appGuiInitFunc.
+     function melvilleFriendClicked(friendID)
+     {
+         if (!friendID in imIDToFriendMap)
+         {
+             IMUtil.dPrint('\n\nClicked on a friendID that '+
+                           'does not exist in imIDToFriendMap\n\n');
+             return;
+         }
+
+         imIDToFriendMap[friendID].beginConversation();
+     }
+     
+     
+
      //"this" is automatically bound to AppGui object in @see AppGui
      //constructor.
      function appGuiInitFunc()
      {
+         this.guiMod.bind('melvilleFriendClicked',std.core.bind(melvilleFriendClicked,this));
+         
          //still must clear pendingEvents.
-
          //only want to execute last display event.
          var displayEvent = false;
          this.guiInitialized = true;
@@ -339,10 +355,20 @@ system.require('hawthorneApps/im/group.em');
                  var friendList = fullGroups[s][4];
                  for (var t in friendList)
                  {
-                     var friendName  = friendList[t][1];
+                     var friendID     = friendList[t][0];
+                     var friendName   = friendList[t][1];
                      var friendStatus = friendList[t][2];
+                     
+                     //whenever user clicks on this div, will call
+                     //melvilleAppGuiFriendClicked, which sends message
+                     //to appgui to open a convgui to friend.
+                     htmlToDisplay += '<div onclick="' +
+                         'melvilleAppGuiFriendClicked(' +
+                         friendID.toString() + ')"';
+
                      htmlToDisplay += '<i>' + friendName + '</i>:  <br/>';
                      htmlToDisplay += friendStatus;
+                     htmlToDisplay += '</div>';//closes onclick div
                      htmlToDisplay += '<br/>';
                  }
 
@@ -382,6 +408,17 @@ system.require('hawthorneApps/im/group.em');
              $('#melvilee-chat-warn-gui').append('<br/>' +toWarnWith);
              melvilleWarnWindow.show();
          };
+
+
+         /**
+          param {unique int} friendID Integer representing the id of
+          the friend user clicked on.
+          */
+         melvilleAppGuiFriendClicked  = function (friendID)
+         {
+             sirikata.event('melvilleFriendClicked',friendID);
+         };
+         
          @;
 
          
