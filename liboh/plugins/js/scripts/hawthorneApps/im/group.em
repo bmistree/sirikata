@@ -109,7 +109,8 @@ Group.prototype.changeVisible = function(newVisible)
 Group.prototype.addMember = function(friendToAdd)
 {
     this.friendsInGroup[friendToAdd.imID] = friendToAdd;
-    friendToAdd.updateProfileAndStatusToFriend(this.profile,this.status);
+    friendToAdd.updateProfileToFriend(this.profile);
+    friendToAdd.updateStatusToFriend(this.status);
 };
 
 Group.prototype.removeMember = function(friendToRemove)
