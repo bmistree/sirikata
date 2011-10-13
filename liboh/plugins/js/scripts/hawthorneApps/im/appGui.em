@@ -94,7 +94,6 @@ system.require('hawthorneApps/im/group.em');
 
      function internalDisplay(appGui)
      {
-         IMUtil.dPrint('\n\nGot into internalDisplay\n\n');
          appGui.guiMod.call('appGuiDisplay',appGui.getDisplayText());
      }
      
@@ -340,8 +339,11 @@ system.require('hawthorneApps/im/group.em');
                  var friendList = fullGroups[s][4];
                  for (var t in friendList)
                  {
-                     var friendName = friendList[t][1];
-                     htmlToDisplay += '<i>' + friendName + '</i> <br/>' ;
+                     var friendName  = friendList[t][1];
+                     var friendStatus = friendList[t][2];
+                     htmlToDisplay += '<i>' + friendName + '</i>:  <br/>';
+                     htmlToDisplay += friendStatus;
+                     htmlToDisplay += '<br/>';
                  }
 
                  
