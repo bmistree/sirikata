@@ -36,10 +36,26 @@ system.require('hawthorneApps/im/group.em');
          //friend as well fname
          var friendToAdd =
              new Friend('fnamer', potentialFriend, this, IMUtil.getUniqueInt());
+
+         //when asking user whether wanted to add friend, presumably
+         //got group id to place friend in.  For now, just assuming
+         //using first group.
+         var groupIDIndex =null;
+         for (groupIDIndex in groupIDToGroupMap)
+             break;
+
+         if (groupIDIndex !== null)
+             groupIDToGroupMap[groupIDIndex].addMember(friendToAdd);
+         else
+             IMUtil.dPrint('\n\nWarning: no group to add new friend to\n');
+             
          
          visIDToFriendMap[potentialFriend.toString()] = friendToAdd;
          imIDToFriendMap [friendToAdd.imID]           = friendToAdd;
 
+         //re-display entire gui when add friend.
+         this.display();
+         
          return friendToAdd;
      }
 
@@ -78,6 +94,7 @@ system.require('hawthorneApps/im/group.em');
 
      function internalDisplay(appGui)
      {
+         IMUtil.dPrint('\n\nGot into internalDisplay\n\n');
          appGui.guiMod.call('appGuiDisplay',appGui.getDisplayText());
      }
      
@@ -92,6 +109,12 @@ system.require('hawthorneApps/im/group.em');
 
          this.pendingEvents = [];
          this.guiInitialized = false;
+
+         //create a default group to friends in
+         var defaultGroup = new Group('default',IMUtil.getUniqueInt(),
+                                      'def status','def prof',true,this);
+         groupIDToGroupMap[defaultGroup.groupID] = defaultGroup;
+
          
          var wrappedTryAddFriend = std.core.bind(tryAddFriend,this);
          
@@ -101,7 +124,7 @@ system.require('hawthorneApps/im/group.em');
          {
              var newFriend = wrappedTryAddFriend(visAdded);
              if (newFriend !== null)
-                 IMUtil.dPrint('Trying to add new friend through prox.');
+                 IMUtil.dPrint('\n\nTrying to add new friend through prox.\n\n');
                  
          }
 
@@ -174,12 +197,12 @@ system.require('hawthorneApps/im/group.em');
          for (var s in groupIDToGroupMap )
          {
 
-             var groupName    =  groupIdToGroupMap[s].groupName;
+             var groupName    =  groupIDToGroupMap[s].groupName;
              var groupID      =  s;
-             var groupStatus  =  groupIdToGroupMap[s].status;
-             var groupProfile =  groupIdToGroupMap[s].profile;
-             var groupVisible =  groupIdToGroupMap[s].visible;
-             var groupFriends =  groupIdToGroupMap[s].getFriends();
+             var groupStatus  =  groupIDToGroupMap[s].status;
+             var groupProfile =  groupIDToGroupMap[s].profile;
+             var groupVisible =  groupIDToGroupMap[s].visible;
+             var groupFriends =  groupIDToGroupMap[s].getFriends();
              
              var singleItem   =  [groupID,groupStatus,groupProfile,
                                   groupVisible,groupFriends];
@@ -303,10 +326,8 @@ system.require('hawthorneApps/im/group.em');
          appGuiDisplay = function(fullGroups)
          {
              //let's just try to display the groups correctly.
-
-             sirikata.log('error', '\\n\\n\\nGot into appGuiDisplay.\\n\\n');
              
-             var htmlToDisplay = 'htmlToDisplay';
+             var htmlToDisplay = '';
              for(var s in fullGroups)
              {
                  htmlToDisplay += '<div id="melvilleAppGui_' +s +'">';
@@ -328,16 +349,15 @@ system.require('hawthorneApps/im/group.em');
                  //"melvilleAppGui_" + s
                  htmlToDisplay += '</div>';
              }
-             
-             $('melville-chat-gui').html(htmlToDisplay);
+
+             $('#melville-chat-gui').html(htmlToDisplay);
          };
 
 
-         
          //gui for displaying warnings.
-         ('<div id=>'   +
+         $('<div>'   +
           '</div>' //end div at top.
-         ).attr({id:'melville-chat-warn-gui',title:'melville warning'}).appendTo('body');
+         ).attr({id:'melville-chat-warn-gui',title:'melvilleIMWarning'}).appendTo('body');
          
 
          //keep hidden the warning window
