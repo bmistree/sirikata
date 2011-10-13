@@ -24,16 +24,34 @@
 function Group(groupName,groupID,status,profile,visible,appGui)
 {
     this.groupName = groupName;
-    this.groupID = groupID;
-    this.status  = status;
-    this.profile = profile;
-    this.visible = visible;
+    this.groupID   = groupID;
+    this.status    = status;
+    this.profile   = profile;
+    this.visible   = visible;
 
-    this.appGui = appGui;
+    this.appGui    = appGui;
          
     //map from friend id to friends
     this.friendsInGroup = {};
 }
+
+
+/**
+ Returns an array of friends according to the friend array specified
+ in @see appGuiDisplay function in @getAppGuiText in appGui.em.
+ */
+Group.prototype.getFriends = function()
+{
+    var returner = [];
+    for (var s in this.friendsInGroup)
+    {
+        var friendID = this.friendsInGroup[s].imID;
+        var friendName = this.friendsInGroup[s].name;
+        var singleElement = [friendID,friendName,this.status,this.profile];
+        returner.push(singleElement);
+    }
+    return returner;
+};
 
 Group.prototype.changeStatus = function(newStatus)
 {

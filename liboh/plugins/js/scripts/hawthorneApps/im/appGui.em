@@ -4,14 +4,18 @@ system.require('hawthorneApps/im/group.em');
 
 (function()
  {
-     var IM_APP_NAME = 'Melville';
+     var IM_APP_NAME = 'MelvilleIM';
      var visIDToFriendMap  = {};
      var imIDToFriendMap   = {};
 
+     var groupIDToGroupMap = {};
+
      
-     var proxHandler = null;
+     var proxHandler    = null;
      var requestHandler = null;
 
+     var WARN_EVENT     = 'WARN_EVENT';
+     var DISPLAY_EVENT  = 'DISPLAY_EVENT';
 
      /**
       @param {visible} potentialFriend
@@ -39,10 +43,56 @@ system.require('hawthorneApps/im/group.em');
          return friendToAdd;
      }
 
+
+     //lkjs;
+     //"this" is automatically bound to AppGui object in @see AppGui
+     //constructor.
+     function appGuiInitFunc()
+     {
+         //still must clear pendingEvents.
+
+         //only want to execute last display event.
+         var displayEvent = false;
+         this.guiInitialized = true;
+         for (var s in this.pendingEvents)
+         {
+             if (this.pendingEvents[s][0] == WARN_EVENT)
+                 internalWarn(this, this.pendingEvents[s][1]);
+             else if (this.pendingEvents[s][0] == DISPLAY_EVENT)
+                 displayEvent = true;
+         }
+
+         if (displayEvent)
+             internalDisplay(this);
+         
+         this.pendingEvents = [];
+     }
+
+     /**
+      @param {string-untainted} toWarnWith
+      */
+     function internalWarn(appGui,toWarnWith)
+     {
+         appGui.guiMod.call('warnAppGui',toWarnWith);
+     }
+
+     function internalDisplay(appGui)
+     {
+         appGui.guiMod.call('appGuiDisplay',appGui.getDisplayText());
+     }
      
      
      AppGui = function()
      {
+         this.guiMod = simulator._simulator.addGUITextModule(
+             IM_APP_NAME,
+             getAppGUIText(),
+             std.core.bind(appGuiInitFunc,this)
+         );
+
+         this.pendingEvents = [];
+         this.guiInitialized = false;
+         
          var wrappedTryAddFriend = std.core.bind(tryAddFriend,this);
          
          //policy is to try to become friends with everyone that I can
@@ -106,11 +156,39 @@ system.require('hawthorneApps/im/group.em');
          for (var s in imIDToFriendMap)
              imIDToFriendMap[s].kill();
 
-         imIDToFriendMap  = {};
-         visIDToFriendMap = {};
+         imIDToFriendMap   = {};
+         visIDToFriendMap  = {};
+         groupIDToGroupMap = {};
 
      };
 
+
+     /**
+      @return {object} laid out according to the @see appGuiDisplay
+      function in @getAppGUIText function.
+      */
+     AppGui.prototype.getDisplayText = function()
+     {
+         var returner = {};
+
+         for (var s in groupIDToGroupMap )
+         {
+
+             var groupName    =  groupIdToGroupMap[s].groupName;
+             var groupID      =  s;
+             var groupStatus  =  groupIdToGroupMap[s].status;
+             var groupProfile =  groupIdToGroupMap[s].profile;
+             var groupVisible =  groupIdToGroupMap[s].visible;
+             var groupFriends =  groupIdToGroupMap[s].getFriends();
+             
+             var singleItem   =  [groupID,groupStatus,groupProfile,
+                                  groupVisible,groupFriends];
+             
+             returner[groupName] = singleItem;
+         }
+         return returner;
+     };
+     
      /**
       Will remove this function sooner or later. Right now, I'm just using it for testing.
       */
@@ -132,14 +210,23 @@ system.require('hawthorneApps/im/group.em');
 
      AppGui.prototype.display = function()
      {
-         system.__debugPrint('Asked to display in app gui.');
+         if (! this.guiInitialized)
+         {
+             this.pendingEvents.push([DISPLAY_EVENT]);
+             return;
+         }
+         internalDisplay(this);
      };
 
-     AppGui.prototype.warn = function(warningMsg)
+     AppGui.prototype.warn = function(warnMsg)
      {
-         system.__debugPrint('\n\nAsked to warn in app gui with message:');
-         system.__debugPrint(warningMsg + '\n\n');
-         
+         if (! this.guiInitialized)
+         {
+             this.pendingEvents.push([WARN_EVENT, warnMsg]);
+             return;
+         }
+
+         internalWarn(this,warnMsg);
      };
 
      AppGui.prototype.remove = function()
@@ -160,5 +247,125 @@ system.require('hawthorneApps/im/group.em');
          return true;
      };
 
+     function getAppGUIText()
+     {
+         var returner = "sirikata.ui('" + IM_APP_NAME + "',";
+         returner += 'function(){ ';
+
+         returner += @
+         //gui for displaying friends list.
+         $('<div>' +
+           '</div>' //end div at top.
+          ).attr({id:'melville-chat-gui',title:'melvilleIM'}).appendTo('body');
+
+         
+         var melvilleWindow = new sirikata.ui.window(
+            '#melville-chat-gui',
+            {
+	        autoOpen: false,
+	        height: 'auto',
+	        width: 300,
+                height: 400,
+                position: 'right'
+            }
+         );
+         melvilleWindow.show();
+
+
+         /**
+          param {object <string, [int, string, string, bool, array]>}
+          fullGroups Indices of object are group names.  The values of
+          fullGroups are 5 elelement long arrays.
+
+          The first element of the array is a uniue id for the group.
+
+          The second element is a string representing the status that
+          will be displayed to every member of the group.
+
+          The third element is a string representing the profile that
+          will be displayed to every member of the group.
+
+          The fourth element is a bool indicating whether you are
+          visible to members of the group.
+
+          The fifth element is another array, this time containing
+          information about the members of the group.  In particular,
+          every element of the array has the following form:
+            -The first element is an int id for a friend
+            -The second element is a string for the friend's name
+            -The third element is a string for the friend's status
+            -The fourth element is a string for the friend's profile
+
+
+          This function walks through all the data in fullGroups, and
+          displays it in an attemptedly-nice form.
+          */
+         appGuiDisplay = function(fullGroups)
+         {
+             //let's just try to display the groups correctly.
+
+             sirikata.log('error', '\\n\\n\\nGot into appGuiDisplay.\\n\\n');
+             
+             var htmlToDisplay = 'htmlToDisplay';
+             for(var s in fullGroups)
+             {
+                 htmlToDisplay += '<div id="melvilleAppGui_' +s +'">';
+                 htmlToDisplay += '<b>' + s +'</b>';
+                 htmlToDisplay += '</br/>';
+
+
+                 //run through all the friends that are in this group,
+                 //displaying each separately.
+                 var friendList = fullGroups[s][4];
+                 for (var t in friendList)
+                 {
+                     var friendName = friendList[t][1];
+                     htmlToDisplay += '<i>' + friendName + '</i> <br/>' ;
+                 }
+
+                 
+                 //closes div at top of forl loop: (one with id =
+                 //"melvilleAppGui_" + s
+                 htmlToDisplay += '</div>';
+             }
+             
+             $('melville-chat-gui').html(htmlToDisplay);
+         };
+
+
+         
+         //gui for displaying warnings.
+         ('<div id=>'   +
+          '</div>' //end div at top.
+         ).attr({id:'melville-chat-warn-gui',title:'melville warning'}).appendTo('body');
+         
+
+         //keep hidden the warning window
+         var melvilleWarnWindow = new sirikata.ui.window(
+            '#melville-chat-warn-gui',
+            {
+	        autoOpen: false,
+	        height: 'auto',
+	        width: 300,
+                height: 300,
+                position: 'right'
+            }
+         );
+         melvilleWarnWindow.hide();
+
+
+         //displays warning messages in new gui.
+         warnAppGui = function(toWarnWith)
+         {
+             $('#melvilee-chat-warn-gui').append('<br/>' +toWarnWith);
+             melvilleWarnWindow.show();
+         };
+         @;
+
+         
+         
+         returner += '});';
+         return returner;
+     }
      
  })();
