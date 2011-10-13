@@ -1,5 +1,6 @@
 system.require('hawthorneApps/im/friend.em');
 system.require('hawthorneApps/im/imUtil.em');
+system.require('hawthorneApps/im/group.em');
 
 (function()
  {
@@ -21,8 +22,6 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      function tryAddFriend(potentialFriend)
      {
-         system.__debugPrint('\n\nAttempting to add friend in tryAddFriend of appGui.em\n\n');
-         
          if ((potentialFriend.toString() in visIDToFriendMap) ||
              (potentialFriend.toString() == system.self.toString()))
              return null;
@@ -52,7 +51,7 @@ system.require('hawthorneApps/im/imUtil.em');
          {
              var newFriend = wrappedTryAddFriend(visAdded);
              if (newFriend !== null)
-                 system.__debugPrint('Trying to add new friend through prox.');
+                 IMUtil.dPrint('Trying to add new friend through prox.');
                  
          }
 
@@ -160,5 +159,6 @@ system.require('hawthorneApps/im/imUtil.em');
          system.__debugPrint('Asked to getIsVisibleTo in app gui.');
          return true;
      };
+
      
  })();

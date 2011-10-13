@@ -56,6 +56,30 @@ system.require('hawthorneApps/im/convGUI.em');
     };
 
 
+    /**
+     Send a message to friend that my profile has changed.  Listeners
+     for these messages are set up in @see setupMessageListeners.
+     */
+    Friend.prototype.updateProfileToFriend = function(newProf)
+    {
+        this.profileToFriend = newProf;
+        if (this.connStatus == CONNECTED_CONV)
+            {'imProf':newProf } >> this.vis >> [];
+    };
+
+
+    /**
+     Send a message to friend that my status has changed.  Listeners
+     for these messages are set up in @see setupMessageListeners.
+     */
+    Friend.prototype.updateStatusToFriend = function(newStatus)
+    {
+        this.statusToFriend = newStatus;
+        if (this.connStatus == CONNECTED_CONV)
+            {'imStatus':newStatus } >> this.vis >> [];
+    };
+
+    
 
     /**
      @param {message object} msg from sender corresponding to this.vis.
@@ -325,7 +349,6 @@ system.require('hawthorneApps/im/convGUI.em');
         //handler for profile updates
         var wrappedHandleProfMessage = std.core.bind(
             handleProfMessage,this);
-        
         
         this.profUpdateHandler = handleProfMessage <<{'imProf'::} << this.vis;
     };
