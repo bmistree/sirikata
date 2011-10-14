@@ -142,13 +142,53 @@ system.require('hawthorneApps/im/imUtil.em');
          
          //fill in guts of function to execute for gui module
          returner += @
-         
+
+         //some constants used for display
          var ME_NAME      = 'me';
          var SYS_NAME     = 'system';
 
          var ME_COLOR     = 'red';
          var FRIEND_COLOR = 'blue';
          var SYS_COLOR    = 'green';
+
+
+         //actual window code
+         $('<div>' + 
+              '<div id="history" style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
+              '</div>' + //end history
+          
+              '<input value="" id="melvilletarea" style="width:250px;">' +
+              '</input>' +
+
+              '<button id="melvilleChatButton">Enter</button>' +
+          
+          '</div>' //end div at top.
+          ).attr({id:'melville-dialog',title:'melville'}).appendTo('body');
+
+         var melvilleWindow = new sirikata.ui.window(
+            '#melville-dialog',
+            {
+	        autoOpen: false,
+	        height: 'auto',
+	        width: 300,
+                height: 400,
+                position: 'right'
+            }
+         );
+
+         //call this on shift+enter event and also when user hits
+         //submit: just transfers message to emerson so that emerson
+         //can send it to other listeners.
+         var submitUserTextToEmerson = function()
+         {
+             sirikata.event('userInput',$('#melvilletarea').val());
+             $('#melvilletarea').val('');
+         };
+         
+         sirikata.ui.button('#melvilleChatButton').click(
+             submitUserTextToEmerson);
+
+         melvilleWindow.show();
 
          
          
@@ -184,45 +224,9 @@ system.require('hawthorneApps/im/imUtil.em');
          function writeToLog(msgToWrite)
          {
              $('#history').append(msgToWrite + '<br />');
+             //in case user had previously closed the window.
+             melvilleWindow.show();
          }
-         
-         
-        $('<div>' + 
-              '<div id="history" style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
-              '</div>' + //end history
-          
-              '<input value="" id="melvilletarea" style="width:250px;">' +
-              '</input>' +
-
-              '<button id="melvilleChatButton">Enter</button>' +
-          
-          '</div>' //end div at top.
-         ).attr({id:'melville-dialog',title:'melville'}).appendTo('body');
-
-         var melvilleWindow = new sirikata.ui.window(
-            '#melville-dialog',
-            {
-	        autoOpen: false,
-	        height: 'auto',
-	        width: 300,
-                height: 400,
-                position: 'right'
-            }
-        );
-
-         //call this on shift+enter event and also when user hits
-         //submit: just transfers message to emerson so that emerson
-         //can send it to other listeners.
-         var submitUserTextToEmerson = function()
-         {
-             sirikata.event('userInput',$('#melvilletarea').val());
-             $('#melvilletarea').val('');
-         };
-         
-         sirikata.ui.button('#melvilleChatButton').click(
-             submitUserTextToEmerson);
-
-         melvilleWindow.show();
 
 
 
