@@ -101,23 +101,53 @@ system.require('hawthorneApps/im/group.em');
                            'Do not have group with associated id.\n\n');
              return;
          }
-
-         groupIDToGroupMap[groupID].changeName(newGroupName);
-         groupIDToGroupMap[groupID].changeStatus(newGroupStatus);
-         groupIDToGroupMap[groupID].changeProfile(newGroupProfile);
+         
+         groupIDToGroupMap[groupID].changeName(
+             IMUtil.htmlEscape(newGroupName));
+         
+         groupIDToGroupMap[groupID].changeStatus(
+             IMUtil.htmlEscape(newGroupStatus));
+         
+         groupIDToGroupMap[groupID].changeProfile(
+             htmlEscape(newGroupProfile));
+         
          //re-paint the group.
          this.display();
      }
-     
+
+     /**
+      "this" is automatically bound to an AppGui object in @see
+      appGuiInitFunc.  This function should only be called through
+      event in html gui when a user potentially changes a friend's
+      name.
+      */
+     function melvilleFriendNameChange(friendID, newFriendName)
+     {
+         if (! friendID in imIDToFriendMap)
+         {
+             IMUtil.dPrint('\n\nError in melvilleFriendNameChange.  ' +
+                           'Do not have friend with associated id.\n\n');
+             return;                 
+         }
+         
+         imIDToFriendMap[friendID].changeName(
+             IMUtil.htmlEscape(newFriendName));
+         
+         //re-paint display to reflect changes.
+         this.display();
+     }
      
 
      //"this" is automatically bound to AppGui object in @see AppGui
      //constructor. Should only be called through event in html gui.
      function appGuiInitFunc()
      {
-         this.guiMod.bind('melvilleFriendClicked',std.core.bind(melvilleFriendClicked,this));
-         this.guiMod.bind('melvilleGroupDataChange',std.core.bind(melvilleGroupDataChange,this));
-         
+         this.guiMod.bind('melvilleFriendClicked',
+                          std.core.bind(melvilleFriendClicked,this));
+         this.guiMod.bind('melvilleGroupDataChange',
+                          std.core.bind(melvilleGroupDataChange,this));
+         this.guiMod.bind('melvilleFriendNameChange',
+                          std.core.bind(melvilleFriendNameChange,this));
          
          //still must clear pendingEvents.
          //only want to execute last display event.
@@ -370,6 +400,18 @@ system.require('hawthorneApps/im/group.em');
                  groupID.toString();                          
          }
 
+         function genFriendChangeNameDivIDFromFriendID(friendID)
+         {
+             return 'melvilleAppGui_friend_id_div_' +
+                 friendID.toString();
+         }
+
+         function genFriendChangeNameTextAreaIDFromFriendID(friendID)
+         {
+             return 'melvilleAppGui_friend_id_changeName_tarea_' +
+                 friendID.toString();
+         }
+         
          
          
          /**
@@ -464,9 +506,32 @@ system.require('hawthorneApps/im/group.em');
                          'melvilleAppGuiFriendClicked(' +
                          friendID.toString() + ')">';
 
-                     htmlToDisplay += '<i>' + friendName + '</i>:  <br/>';
-                     htmlToDisplay += friendStatus;
+                     htmlToDisplay += '<i>' + friendName + '</i>.';
                      htmlToDisplay += '</div>';//closes onclick div
+
+                     
+                     htmlToDisplay += '<div onclick="' +
+                         'melvilleAppGuiFriendNameChangeClicked(' +
+                         friendID.toString() + ')">';
+                     htmlToDisplay += 'change name';
+                     htmlToDisplay += '</div>';
+
+
+                     htmlToDisplay += '<div id="' +
+                     genFriendChangeNameDivIDFromFriendID(friendID) +
+                     '"' + 'style="display: none"' + 
+                     '>';
+
+                     //// put friend name into modifiable textarea
+                     htmlToDisplay += 'friend name: <textarea id="'+
+                     genFriendChangeNameTextAreaIDFromFriendID(friendID) +'">' +
+                     friendName +
+                     '</textarea> <br/>';
+
+                     htmlToDisplay += '</div>';  //closes friend change name div
+                     
+                     htmlToDisplay += friendStatus;
+
                      htmlToDisplay += '<br/>';
                  }
 
@@ -554,8 +619,48 @@ system.require('hawthorneApps/im/group.em');
              }
          };
 
-         @;
+         /**
+          Gets called when user clicks on the change name field next
+          to friend name.  If friend name div was hidden, then expose
+          it.  If friend name div was exposed, then read values from
+          its text areas and notify appgui that a friend's name has
+          changed.
+          */
+         melvilleAppGuiFriendNameChangeClicked = function (friendID)
+         {
+             var friendNameDivID =
+                 genFriendChangeNameDivIDFromFriendID(friendID);
+             var itemToToggle = document.getElementById(friendNameDivID);
 
+             if (itemToToggle === null)
+             {
+                 sirikata.log('warn', '\\nWarning on Melville friend ' +
+                              'change name clicked: do not have ' +
+                              'associated friendID\\n');
+                 return; 
+             }
+
+
+             if (itemToToggle.style.display==='none')
+             {
+                 //makes text visible.
+                 itemToToggle.style.display = 'block';
+             }
+             else
+             {
+                 itemToToggle.style.display = 'none';
+
+                 var friendNameTAreaID =
+                     genFriendChangeNameTextAreaIDFromFriendID(friendID);
+                 
+                 var newFriendName     = $('#'+friendNameTAreaID).val();
+                 sirikata.event('melvilleFriendNameChange',
+                                friendID,newFriendName);
+
+             }
+         };
+         
+         @;
          
          
          returner += '});';

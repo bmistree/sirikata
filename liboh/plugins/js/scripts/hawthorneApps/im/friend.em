@@ -55,7 +55,7 @@ system.require('hawthorneApps/im/convGUI.em');
         this.setupMessageListeners();
     };
 
-
+    
     /**
      Send a message to friend that my profile has changed.  Listeners
      for these messages are set up in @see setupMessageListeners.
@@ -79,8 +79,18 @@ system.require('hawthorneApps/im/convGUI.em');
             {'imStatus':newStatus } >> this.vis >> [];
     };
 
-    
 
+    /**
+     @param {string - untainted} newName
+     Changes friend's name to newName
+     */
+    Friend.prototype.changeName = function(newName)
+    {
+        this.name = newName;
+        if (this.convGUI !== null)
+            this.convGUI.changeFriendName(newName);
+    };
+    
     /**
      @param {message object} msg from sender corresponding to this.vis.
      Replies with a message that should satisfy regResponseMsg.
