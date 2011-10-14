@@ -95,9 +95,6 @@ system.require('hawthorneApps/im/group.em');
      function melvilleGroupDataChange(groupID,newGroupName,
                                       newGroupStatus,newGroupProfile)
      {
-         IMUtil.dPrint('\n\nGot into melville group data change\n\n');
-         IMUtil.dPrint('New name:  ' + newGroupName + '\n\n');
-         
          if (!groupID in groupIDToGroupMap)
          {
              IMUtil.dPrint('\n\nError in melvilleGroupDataChange.  ' +

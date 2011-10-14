@@ -79,9 +79,6 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      function userInput(whatWrote)
      {
-         IMUtil.dPrint('\n\nThis is what was written by user: ' +
-                       whatWrote+ '\n\n');
-         
          this.friend.msgToFriend(whatWrote);
      }
 
@@ -129,8 +126,6 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      function internalWriteMe(convGUI,message)
      {
-         IMUtil.dPrint('\n\nGot into internalWriteMe with message: ' +
-                       message +'\n\n');
          convGUI.guiMod.call('writeMe',message);
      }
 
@@ -215,15 +210,39 @@ system.require('hawthorneApps/im/imUtil.em');
             }
         );
 
+         //call this on shift+enter event and also when user hits
+         //submit: just transfers message to emerson so that emerson
+         //can send it to other listeners.
+         var submitUserTextToEmerson = function()
+         {
+             sirikata.event('userInput',$('#melvilletarea').val());
+             $('#melvilletarea').val('');
+         };
+         
          sirikata.ui.button('#melvilleChatButton').click(
-             function()
-             {
-                 sirikata.event('userInput',$('#melvilletarea').val());
-                 $('#melvilletarea').val('');
-             }
-         );  
+             submitUserTextToEmerson);
 
          melvilleWindow.show();
+
+
+
+         //handles shift+enter submitting message to other end
+         var handleMelvilleTareaKeyUp = function(evt)
+         {
+             //13 represents keycode for enter, submits whatever's in
+             //the text box if user hits shift+enter.
+             if ((evt.keyCode == 13) && evt.shiftKey)
+                 submitUserTextToEmerson();
+         };
+
+         //copied from chat.js
+         var registerHotkeys = function() {
+             var register_area = document.getElementById('melvilletarea');
+             register_area.onkeyup = handleMelvilleTareaKeyUp;
+         };
+         registerHotkeys();
+
+         
          @;
          
          
