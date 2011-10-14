@@ -345,7 +345,7 @@ system.require('hawthorneApps/im/convGUI.em');
         var wrappedHandleMessage = std.core.bind(
             handleMessage,this);
 
-        this.msgHandler = wrappedHandleMessage <<{'imMsg'::} << this.vis;
+        this.msgHandler = wrappedHandleMessage << {'imMsg'::} << this.vis;
 
 
         //handler for status updates
@@ -360,7 +360,8 @@ system.require('hawthorneApps/im/convGUI.em');
         var wrappedHandleProfMessage = std.core.bind(
             handleProfMessage,this);
         
-        this.profUpdateHandler = handleProfMessage <<{'imProf'::} << this.vis;
+        this.profUpdateHandler = wrappedHandleProfMessage <<
+            {'imProf'::} << this.vis;
     };
 
     
