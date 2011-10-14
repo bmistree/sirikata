@@ -60,8 +60,15 @@ system.require('hawthorneApps/im/group.em');
      }
 
 
-     //"this" is automatically bound to an AppGui object in @see
-     //appGuiInitFunc.
+     /**
+      "this" is automatically bound to an AppGui object in @see
+      appGuiInitFunc.  Should only be called through event in html gui
+      when a user clicks on a friend's name.
+
+      Behavior is to interpret the click as a request for
+      conversation, and to tell associated friend to begin
+      conversation with other side.
+      */
      function melvilleFriendClicked(friendID)
      {
          if (!friendID in imIDToFriendMap)
@@ -73,14 +80,47 @@ system.require('hawthorneApps/im/group.em');
 
          imIDToFriendMap[friendID].beginConversation();
      }
+
+
+     /**
+      "this" is automatically bound to an AppGui object in @see
+      appGuiInitFunc.  Should only be called through event in html gui
+      when a user potentially changes a group's data (for instance, its
+      name, profile, status, etc.).
+
+      Requests that associated group update its fields, send updates
+      to group members if necessary, and re-displays the emerson app
+      gui.
+      */
+     function melvilleGroupDataChange(groupID,newGroupName,
+                                      newGroupStatus,newGroupProfile)
+     {
+         IMUtil.dPrint('\n\nGot into melville group data change\n\n');
+         IMUtil.dPrint('New name:  ' + newGroupName + '\n\n');
+         
+         if (!groupID in groupIDToGroupMap)
+         {
+             IMUtil.dPrint('\n\nError in melvilleGroupDataChange.  ' +
+                           'Do not have group with associated id.\n\n');
+             return;
+         }
+
+         groupIDToGroupMap[groupID].changeName(newGroupName);
+         groupIDToGroupMap[groupID].changeStatus(newGroupStatus);
+         groupIDToGroupMap[groupID].changeProfile(newGroupProfile);
+         //re-paint the group.
+         this.display();
+     }
      
      
 
      //"this" is automatically bound to AppGui object in @see AppGui
-     //constructor.
+     //constructor. Should only be called through event in html gui.
      function appGuiInitFunc()
      {
          this.guiMod.bind('melvilleFriendClicked',std.core.bind(melvilleFriendClicked,this));
+         this.guiMod.bind('melvilleGroupDataChange',std.core.bind(melvilleGroupDataChange,this));
+         
          
          //still must clear pendingEvents.
          //only want to execute last display event.
@@ -213,7 +253,7 @@ system.require('hawthorneApps/im/group.em');
          {
 
              var groupName    =  groupIDToGroupMap[s].groupName;
-             var groupID      =  s;
+             var groupID      =  groupIDToGroupMap[s].groupID;
              var groupStatus  =  groupIDToGroupMap[s].status;
              var groupProfile =  groupIDToGroupMap[s].profile;
              var groupVisible =  groupIDToGroupMap[s].visible;
@@ -310,6 +350,31 @@ system.require('hawthorneApps/im/group.em');
          melvilleWindow.show();
 
 
+         function genGroupDivIDFromGroupID(groupID)
+         {
+             return 'melvilleAppGui_group_div_id_' +
+                 groupID.toString();
+         }
+         function genGroupNameTextAreaIDFromGroupID(groupID)
+         {
+             return 'melvilleAppGui_group_name_textarea_id_' +
+                 groupID.toString();
+         }
+         
+         function genGroupStatusTextAreaIDFromGroupID(groupID)
+         {
+             return 'melvilleAppGui_group_status_textarea_id_' +
+                 groupID.toString();             
+         }
+         
+         function genGroupProfileTextAreaIDFromGroupID(groupID)
+         {
+             return 'melvilleAppGui_group_profile_textarea_id_' +
+                 groupID.toString();                          
+         }
+
+         
+         
          /**
           param {object <string, [int, string, string, bool, array]>}
           fullGroups Indices of object are group names.  The values of
@@ -345,8 +410,46 @@ system.require('hawthorneApps/im/group.em');
              var htmlToDisplay = '';
              for(var s in fullGroups)
              {
-                 htmlToDisplay += '<div id="melvilleAppGui_' +s +'">';
-                 htmlToDisplay += '<b>' + s +'</b>';
+                 var groupName    = s;
+                 var groupID      = fullGroups[s][0];
+                 var groupStatus  = fullGroups[s][1];
+                 var groupProfile = fullGroups[s][2];
+
+
+                 htmlToDisplay += '<div onclick="' +
+                     'melvilleAppGuiGroupClicked(' +
+                     groupID.toString() + ')">';
+                 htmlToDisplay += '<b>' + groupName +'</b>';
+                 htmlToDisplay += '</div>'; //closes on group clicked div
+
+                 
+                 htmlToDisplay += '<div id="' +
+                     genGroupDivIDFromGroupID(groupID) +
+                     '"' + 'style="display: none"' + 
+                     '>';
+
+                 //put group name into modifiable textarea.
+                 htmlToDisplay += 'group name:   <textarea id="'+
+                     genGroupNameTextAreaIDFromGroupID(groupID) +'">' +
+                     groupName +
+                     '</textarea> <br/>';
+
+                 //put group status into modifiable textarea
+                 htmlToDisplay += 'group status: <textarea id="'+
+                     genGroupStatusTextAreaIDFromGroupID(groupID) +'">' +
+                     groupStatus +
+                     '</textarea> <br/>';
+
+                 //// put group profile into modifiable textarea
+                 htmlToDisplay += 'group profile: <textarea id="'+
+                     genGroupProfileTextAreaIDFromGroupID(groupID) +'">' +
+                     groupProfile +
+                     '</textarea> <br/>';
+
+
+                 //closes div associated with genGroupDivIDFromGroupName above
+                 htmlToDisplay += '</div>';
+                 
                  htmlToDisplay += '</br/>';
 
 
@@ -373,9 +476,7 @@ system.require('hawthorneApps/im/group.em');
                  }
 
                  
-                 //closes div at top of forl loop: (one with id =
-                 //"melvilleAppGui_" + s
-                 htmlToDisplay += '</div>';
+
              }
 
              $('#melville-chat-gui').html(htmlToDisplay);
@@ -418,7 +519,46 @@ system.require('hawthorneApps/im/group.em');
          {
              sirikata.event('melvilleFriendClicked',friendID);
          };
-         
+
+
+         melvilleAppGuiGroupClicked = function(groupID)
+         {
+             var groupDivID = genGroupDivIDFromGroupID(groupID);
+             var itemToToggle= document.getElementById(groupDivID);
+             if (itemToToggle === null)
+             {
+                 sirikata.log('warn', '\\nWarning on Melville group ' +
+                              'clicked: do not have associated groupID\\n');
+                 return; 
+             }
+
+
+             if (itemToToggle.style.display==='none')
+             {
+                 //makes text visible.
+                 itemToToggle.style.display = 'block';
+             }
+             else
+             {
+                 itemToToggle.style.display = 'none';
+                 var groupNameTAreaID =
+                     genGroupNameTextAreaIDFromGroupID(groupID);
+
+                 var groupStatusTAreaID =
+                     genGroupStatusTextAreaIDFromGroupID(groupID);
+
+                 var groupProfileTAreaID =
+                     genGroupProfileTextAreaIDFromGroupID(groupID);
+                 
+                 
+                 var newGroupName    = $('#'+groupNameTAreaID).val();
+                 var newGroupStatus  = $('#'+groupStatusTAreaID).val();
+                 var newGroupProfile = $('#'+groupProfileTAreaID).val();
+                 sirikata.event('melvilleGroupDataChange', groupID,newGroupName,
+                                newGroupStatus,newGroupProfile);
+             }
+         };
+
          @;
 
          

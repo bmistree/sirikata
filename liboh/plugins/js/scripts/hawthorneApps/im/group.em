@@ -45,9 +45,12 @@ Group.prototype.getFriends = function()
     var returner = [];
     for (var s in this.friendsInGroup)
     {
-        var friendID = this.friendsInGroup[s].imID;
-        var friendName = this.friendsInGroup[s].name;
-        var singleElement = [friendID,friendName,this.status,this.profile];
+        var friendID      = this.friendsInGroup[s].imID;
+        var friendName    = this.friendsInGroup[s].name;
+        var friendStatus  = this.friendsInGroup[s].statusFromFriend;
+        var friendProfile = this.friendsInGroup[s].profileFromFriend;
+
+        var singleElement = [friendID,friendName,friendStatus,friendProfile];
         returner.push(singleElement);
     }
     return returner;
@@ -88,6 +91,11 @@ Group.prototype.changeProfile = function(newProfile)
          
     for (var s in this.friendsInGroup)
         this.friendsInGroup[s].updateProfileToFriend(newProfile);
+};
+
+Group.prototype.changeName = function(newName)
+{
+    this.groupName = newName;  
 };
 
 Group.prototype.changeVisible = function(newVisible)
