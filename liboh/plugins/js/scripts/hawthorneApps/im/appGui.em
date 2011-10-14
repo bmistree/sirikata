@@ -449,8 +449,6 @@ system.require('hawthorneApps/im/group.em');
 
                  //closes div associated with genGroupDivIDFromGroupName above
                  htmlToDisplay += '</div>';
-                 
-                 htmlToDisplay += '</br/>';
 
 
                  //run through all the friends that are in this group,
@@ -467,7 +465,7 @@ system.require('hawthorneApps/im/group.em');
                      //to appgui to open a convgui to friend.
                      htmlToDisplay += '<div onclick="' +
                          'melvilleAppGuiFriendClicked(' +
-                         friendID.toString() + ')"';
+                         friendID.toString() + ')">';
 
                      htmlToDisplay += '<i>' + friendName + '</i>:  <br/>';
                      htmlToDisplay += friendStatus;
