@@ -3,10 +3,12 @@ system.require('hawthorneApps/im/imUtil.em');
 
 (function()
  {
-     var WRITE_ME_EVENT     =      'WRITE_ME_EVENT';
-     var WRITE_FRIEND_EVENT =  'WRITE_FRIEND_EVENT';
-     var WARN_EVENT         =          'WARN_EVENT';
-
+     var WRITE_ME_EVENT           =           'WRITE_ME_EVENT';
+     var WRITE_FRIEND_EVENT       =       'WRITE_FRIEND_EVENT';
+     var WARN_EVENT               =               'WARN_EVENT';
+     var CHANGE_FRIEND_NAME_EVENT = 'CHANGE_FRIEND_NAME_EVENT';
+     
+     
      function guiName(friendName)
      {
          return 'Messaging with '+ friendName;
@@ -72,6 +74,18 @@ system.require('hawthorneApps/im/imUtil.em');
          internalWriteFriend(this,toWrite);
      };
 
+
+     ConvGUI.prototype.changeFriendName = function(newFriendName)
+     {
+         if (!this.guiInitialized)
+         {
+             this.pendingEvents.push([CHANGE_FRIEND_NAME_EVENT,newFriendName]);
+             return;
+         }
+
+         internalChangeFriendName(this,newFriendName);
+     };
+     
      
      /**
       Gets called by js display code when user enters data.  Already
@@ -99,6 +113,8 @@ system.require('hawthorneApps/im/imUtil.em');
                  internalWriteMe(this,this.pendingEvents[s][1]);
              else if (this.pendingEvents[s][0] == WRITE_FRIEND_EVENT)
                  internalWriteFriend(this,this.pendingEvents[s][1]);
+             else if (this.pendingEvents[s][0] == CHANGE_FRIEND_NAME_EVENT)
+                 internalChangeFriendName(this,this.pendingEvents[s][1]);
              else
                  internalWarn(this,this.pendingEvents[s][1]);
          }
@@ -127,6 +143,14 @@ system.require('hawthorneApps/im/imUtil.em');
      function internalWriteMe(convGUI,message)
      {
          convGUI.guiMod.call('writeMe',message);
+     }
+
+     /**
+      @param {string-untainted} newName
+      */
+     function internalChangeFriendName(convGUI,newName)
+     {
+         convGUI.guiMod.call('changeFriendName',newName);
      }
 
 
@@ -219,7 +243,13 @@ system.require('hawthorneApps/im/imUtil.em');
              writeToLog(formattedMsg);
          };
 
+         //updates friend's name in conversation.
+         changeFriendName = function(newName)
+         {
+             FRIEND_NAME = newName;
+         };
 
+         
          //appends the string to the end of the scrolling chat log.
          function writeToLog(msgToWrite)
          {
