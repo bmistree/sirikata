@@ -109,7 +109,7 @@ system.require('hawthorneApps/im/group.em');
              IMUtil.htmlEscape(newGroupStatus));
          
          groupIDToGroupMap[groupID].changeProfile(
-             htmlEscape(newGroupProfile));
+             IMUtil.htmlEscape(newGroupProfile));
          
          //re-paint the group.
          this.display();
@@ -138,6 +138,24 @@ system.require('hawthorneApps/im/group.em');
      }
      
 
+     /**
+      "this" is automatically bound to an AppGui object in @see
+      appGuiInitFunc.  This function should only be called through
+      event in html gui when a user asks to create a new group.  
+      */
+     function melvilleAddGroup(groupName, groupStatus,groupProfile)
+     {
+         var defaultGroup = new Group(
+             IMUtil.htmlEscape(groupName),IMUtil.getUniqueInt(),
+             IMUtil.htmlEscape(groupStatus),IMUtil.htmlEscape(groupProfile),
+             true,this);
+
+         groupIDToGroupMap[defaultGroup.groupID] = defaultGroup;
+         //re-paint display to reflect changes.
+         this.display();
+     }
+
+     
      //"this" is automatically bound to AppGui object in @see AppGui
      //constructor. Should only be called through event in html gui.
      function appGuiInitFunc()
@@ -148,6 +166,9 @@ system.require('hawthorneApps/im/group.em');
                           std.core.bind(melvilleGroupDataChange,this));
          this.guiMod.bind('melvilleFriendNameChange',
                           std.core.bind(melvilleFriendNameChange,this));
+         this.guiMod.bind('melvilleAddGroup',
+                          std.core.bind(melvilleAddGroup,this));
+
          
          //still must clear pendingEvents.
          //only want to execute last display event.
@@ -411,7 +432,23 @@ system.require('hawthorneApps/im/group.em');
              return 'melvilleAppGui_friend_id_changeName_tarea_' +
                  friendID.toString();
          }
-         
+
+         function genCreateGroupDivID()
+         {
+             return 'melvilleAppGui_createGroup_div_id';
+         }
+         function genNewGroupNameTAreaID()
+         {
+             return 'melvilleAppGui_createGroup_groupNameTArea';
+         }
+         function genNewGroupStatusTAreaID()
+         {
+             return 'melvilleAppGui_createGroup_groupStatusTArea';
+         }
+         function genNewGroupProfileTAreaID()
+         {
+             return 'melvilleAppGui_createGroup_groupProfileTArea';
+         }
          
          
          /**
@@ -447,6 +484,41 @@ system.require('hawthorneApps/im/group.em');
              //let's just try to display the groups correctly.
              
              var htmlToDisplay = '';
+
+             //header controls to create new groups
+             htmlToDisplay += '<div onclick="' +
+                 'melvilleAppGuiCreateGroupClicked()">';
+             htmlToDisplay += '<b> New group</b>';
+             htmlToDisplay += '</div>';
+
+             htmlToDisplay += '<div id="' +
+                 genCreateGroupDivID() +
+                 '"' + 'style="display: none"' + 
+                 '>';
+
+             //put group name into modifiable textarea.
+             htmlToDisplay += 'group name:   <textarea id="'+
+                 genNewGroupNameTAreaID() +'">' +
+                 groupName +
+                 '</textarea> <br/>';
+             
+             //put group status into modifiable textarea
+             htmlToDisplay += 'group status: <textarea id="'+
+                 genNewGroupStatusTAreaID() +'">' +
+                 groupStatus +
+                 '</textarea> <br/>';
+
+             //// put group profile into modifiable textarea
+             htmlToDisplay += 'group profile: <textarea id="'+
+                 genNewGroupProfileTAreaID() +'">' +
+                 groupProfile +
+                 '</textarea> <br/>';
+
+             //closes hidden div with group name fields
+             htmlToDisplay += '</div>';
+
+
+             //actually print out all friends in groups
              for(var s in fullGroups)
              {
                  var groupName    = s;
@@ -534,9 +606,6 @@ system.require('hawthorneApps/im/group.em');
 
                      htmlToDisplay += '<br/>';
                  }
-
-                 
-
              }
 
              $('#melville-chat-gui').html(htmlToDisplay);
@@ -657,6 +726,39 @@ system.require('hawthorneApps/im/group.em');
                  sirikata.event('melvilleFriendNameChange',
                                 friendID,newFriendName);
 
+             }
+         };
+
+
+         melvilleAppGuiCreateGroupClicked = function()
+         {
+             var newGroupDivID = genCreateGroupDivID();
+
+             var itemToToggle = document.getElementById(newGroupDivID);
+
+             if (itemToToggle === null)
+             {
+                 sirikata.log('warn', '\\nWarning on Melville group ' +
+                              'create clicked: do not have ' +
+                              'associated item\\n');
+                 return; 
+             }
+
+
+             if (itemToToggle.style.display==='none')
+             {
+                 //makes text visible.
+                 itemToToggle.style.display = 'block';
+             }
+             else
+             {
+                 itemToToggle.style.display = 'none';
+                 var newGroupName    = $('#' + genNewGroupNameTAreaID()).val();
+                 var newGroupStatus  = $('#' + genNewGroupStatusTAreaID()).val();
+                 var newGroupProfile = $('#' + genNewGroupProfileTAreaID()).val();
+                 
+                 sirikata.event('melvilleAddGroup', newGroupName,
+                                newGroupStatus, newGroupProfile);
              }
          };
          
