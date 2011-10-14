@@ -225,6 +225,9 @@ system.require('hawthorneApps/im/imUtil.em');
          {
              $('#history').append(msgToWrite + '<br />');
              //in case user had previously closed the window.
+             //auto-scrolls to end of conversation.
+             var objDiv = document.getElementById("history");
+             objDiv.scrollTop = objDiv.scrollHeight;
              melvilleWindow.show();
          }
 
