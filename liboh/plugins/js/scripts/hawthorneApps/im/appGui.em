@@ -121,7 +121,9 @@ system.require('hawthorneApps/im/group.em');
       event in html gui when a user potentially changes a friend's
       name.
       */
-     function melvilleFriendNameChange(friendID, newFriendName)
+     function melvilleFriendNameGroupChange(friendID,
+                                            newFriendName,
+                                            newFriendGroupID,prevFriendGroupID)
      {
          if (! friendID in imIDToFriendMap)
          {
@@ -129,9 +131,31 @@ system.require('hawthorneApps/im/group.em');
                            'Do not have friend with associated id.\n\n');
              return;                 
          }
-         
+
+
          imIDToFriendMap[friendID].changeName(
              IMUtil.htmlEscape(newFriendName));
+
+
+         //friend transitioned from one group to another
+         if (newFriendGroupID != prevFriendGroupID)
+         {
+             if (newFriendGroupID in groupIDToGroupMap)
+             {
+                 if (prevFriendGroupID in groupIDToGroupMap)
+                 {
+                     groupIDToGroupMap[prevFriendGroupID].removeMember(
+                         imIDToFriendMap[friendID]);
+                 }
+                 groupIDToGroupMap[newFriendGroupID].addMember(
+                     imIDToFriendMap[friendID]);
+             }
+             else
+             {
+                 IMUtil.dPrint('\n\nError in melvilleFriendGroupChange.  ' +
+                               'Do not have group to change this friend to.');
+             }
+         }
          
          //re-paint display to reflect changes.
          this.display();
@@ -164,8 +188,8 @@ system.require('hawthorneApps/im/group.em');
                           std.core.bind(melvilleFriendClicked,this));
          this.guiMod.bind('melvilleGroupDataChange',
                           std.core.bind(melvilleGroupDataChange,this));
-         this.guiMod.bind('melvilleFriendNameChange',
-                          std.core.bind(melvilleFriendNameChange,this));
+         this.guiMod.bind('melvilleFriendNameGroupChange',
+                          std.core.bind(melvilleFriendNameGroupChange,this));
          this.guiMod.bind('melvilleAddGroup',
                           std.core.bind(melvilleAddGroup,this));
 
@@ -421,7 +445,8 @@ system.require('hawthorneApps/im/group.em');
                  groupID.toString();                          
          }
 
-         function genFriendChangeNameDivIDFromFriendID(friendID)
+         
+         function genFriendChangeNameGroupDivIDFromFriendID(friendID)
          {
              return 'melvilleAppGui_friend_id_div_' +
                  friendID.toString();
@@ -448,6 +473,12 @@ system.require('hawthorneApps/im/group.em');
          function genNewGroupProfileTAreaID()
          {
              return 'melvilleAppGui_createGroup_groupProfileTArea';
+         }
+
+         function genFriendGroupChangeSelectID(friendID)
+         {
+             return 'melvilleAppGui_friend_group_change_selectID' +
+                 friendID.toString();
          }
          
          
@@ -583,23 +614,51 @@ system.require('hawthorneApps/im/group.em');
 
                      
                      htmlToDisplay += '<div onclick="' +
-                         'melvilleAppGuiFriendNameChangeClicked(' +
-                         friendID.toString() + ')">';
-                     htmlToDisplay += 'change name';
+                         'melvilleAppGuiFriendNameGroupChangeClicked(' +
+                         friendID.toString() + ',' + groupID.toString() +
+                         ')">';
+                     htmlToDisplay += 'change name/group';
                      htmlToDisplay += '</div>';
 
 
                      htmlToDisplay += '<div id="' +
-                     genFriendChangeNameDivIDFromFriendID(friendID) +
-                     '"' + 'style="display: none"' + 
-                     '>';
-
+                         genFriendChangeNameGroupDivIDFromFriendID(friendID) +
+                         '"' + 'style="display: none"' + 
+                         '>';
+                     
                      //// put friend name into modifiable textarea
                      htmlToDisplay += 'friend name: <textarea id="'+
-                     genFriendChangeNameTextAreaIDFromFriendID(friendID) +'">' +
-                     friendName +
-                     '</textarea> <br/>';
+                         genFriendChangeNameTextAreaIDFromFriendID(friendID) +'">' +
+                         friendName +
+                         '</textarea> <br/>';
 
+                     
+                     //for each friend, create a pull-down menu of
+                     //groups that the friend can change into.
+                     htmlToDisplay += '<select id="' +
+                         genFriendGroupChangeSelectID(friendID) + '">';
+
+                     //display current group on top
+                     htmlToDisplay += '<option value=' + groupID.toString() +
+                         'selected>' + groupName;
+
+                     for (var fullGroupsIter in fullGroups)
+                     {
+                         var gName = fullGroupsIter;
+                         var gID   = fullGroups[gName][0];
+                         
+                         if (gID != groupID)
+                         {
+                             htmlToDisplay += '<option value=' +
+                                 gID.toString() +'>';
+                             htmlToDisplay += gName;                                 
+                         }
+                     }
+
+                     //closes selection list of different groups can
+                     //add friend to.
+                     htmlToDisplay += '</select>'; 
+                     
                      htmlToDisplay += '</div>';  //closes friend change name div
                      
                      htmlToDisplay += friendStatus;
@@ -695,16 +754,18 @@ system.require('hawthorneApps/im/group.em');
           its text areas and notify appgui that a friend's name has
           changed.
           */
-         melvilleAppGuiFriendNameChangeClicked = function (friendID)
+         melvilleAppGuiFriendNameGroupChangeClicked = function (friendID,prevGroupID)
          {
-             var friendNameDivID =
-                 genFriendChangeNameDivIDFromFriendID(friendID);
-             var itemToToggle = document.getElementById(friendNameDivID);
+             var friendNameGroupDivID =
+                 genFriendChangeNameGroupDivIDFromFriendID(friendID);
+             
+             var itemToToggle
+                 = document.getElementById(friendNameGroupDivID);
 
              if (itemToToggle === null)
              {
                  sirikata.log('warn', '\\nWarning on Melville friend ' +
-                              'change name clicked: do not have ' +
+                              'change name/group clicked: do not have ' +
                               'associated friendID\\n');
                  return; 
              }
@@ -719,12 +780,22 @@ system.require('hawthorneApps/im/group.em');
              {
                  itemToToggle.style.display = 'none';
 
+                 //to change friend's name
                  var friendNameTAreaID =
                      genFriendChangeNameTextAreaIDFromFriendID(friendID);
                  
                  var newFriendName     = $('#'+friendNameTAreaID).val();
-                 sirikata.event('melvilleFriendNameChange',
-                                friendID,newFriendName);
+
+
+                 //to change friend's membership in group
+                 var friendGroupTAreaID =
+                     genFriendGroupChangeSelectID(friendID);
+
+                 var newGroupID = $('#' + friendGroupTAreaID).val();
+
+                 
+                 sirikata.event('melvilleFriendNameGroupChange',
+                                friendID,newFriendName,newGroupID,prevGroupID);
 
              }
          };
