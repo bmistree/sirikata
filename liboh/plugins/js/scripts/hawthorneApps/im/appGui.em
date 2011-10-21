@@ -2,6 +2,8 @@ system.require('hawthorneApps/im/friend.em');
 system.require('hawthorneApps/im/imUtil.em');
 system.require('hawthorneApps/im/group.em');
 
+
+
 (function()
  {
      var IM_APP_NAME = 'MelvilleIM';
@@ -10,54 +12,154 @@ system.require('hawthorneApps/im/group.em');
 
      var groupIDToGroupMap = {};
 
+     //a list of outstanding questions that have been asked of user.
+     //Indices are unique integers.  Values are arrays.  First element
+     //of array always lists request type.  Other elements of array are
+     //just saved data used to process that type.
+     var outstandingUserRequestMap = { };
+
+     var OUTSTANDING_REQ_FRIENDSHIP_EVENT =
+         'OUTSTANDING_REQ_FRIENDSHIP_EVENT';
      
      var proxHandler    = null;
      var requestHandler = null;
 
      var WARN_EVENT     = 'WARN_EVENT';
      var DISPLAY_EVENT  = 'DISPLAY_EVENT';
-
+     var TRY_ADD_EVENT  = 'TRY_ADD_EVENT';
+     
+     
      /**
       @param {visible} potentialFriend
 
+      @param {msg object} reqMsg is non-null when we are trying to add
+      a friend after having received a request message from that
+      friend.  Is null if we're trying to add a friend from a
+      proximity message.
+      
       don't add them as friend unless they aren't already your friend,
       they aren't you, and the user gives permission to add them.
       (For now, skipping user-asking part.)
+      
       */
-     function tryAddFriend(potentialFriend)
+     function tryAddFriend(potentialFriend,reqMsg)
      {
+         
          if ((potentialFriend.toString() in visIDToFriendMap) ||
              (potentialFriend.toString() == system.self.toString()))
-             return null;
+             return;
 
-         //ask user if he/she wants to add the friend.
 
-         //for now, automatically add as friend.  Automatically name
-         //friend as well fname
-         var friendToAdd =
-             new Friend('fnamer', potentialFriend, this, IMUtil.getUniqueInt());
-
-         //when asking user whether wanted to add friend, presumably
-         //got group id to place friend in.  For now, just assuming
-         //using first group.
-         var groupIDIndex =null;
-         for (groupIDIndex in groupIDToGroupMap)
-             break;
-
-         if (groupIDIndex !== null)
-             groupIDToGroupMap[groupIDIndex].addMember(friendToAdd);
-         else
-             IMUtil.dPrint('\n\nWarning: no group to add new friend to\n');
+         //if the gui has not yet been initalized, hold on to this
+         //event until it is.  This way, we only make internal calls
+         //into gui after it's initialized.
+         if (!this.guiInitialized)
+         {
+             var newPendingEvent = [TRY_ADD_EVENT,potentialFriend,reqMsg];
+             this.pendingEvents.push(newPendingEvent);
+             return;
+         }
              
-         
-         visIDToFriendMap[potentialFriend.toString()] = friendToAdd;
-         imIDToFriendMap [friendToAdd.imID]           = friendToAdd;
+             
+         var outUserReqID = IMUtil.getUniqueInt();
+         var reqMapEntry  = [OUTSTANDING_REQ_FRIENDSHIP_EVENT,
+                             std.core.bind(completeAddFriend,
+                                           this,
+                                           potentialFriend,
+                                           reqMsg)];
 
+
+         outstandingUserRequestMap[outUserReqID] = reqMapEntry;
+         this.guiMod.call(
+             'checkAddFriend',potentialFriend.toString(),outUserReqID);
+     }
+
+     /**
+      @param {unique int} requestID We passed an identifier on to the
+      gui.  The identifier allows us to index back into
+      outstandingUserRequestMap to find the associated addFriend
+      request.
+
+      @param {String - tainted} newFriendName What the user wants to
+      name the new friend.
+
+      @param {unique int} newFriendGroupID the id of the group to
+      enter this friend into.  Note: the group may not still be
+      available. 
+      */
+     function userRespAddFriend(requestID, newFriendName,newFriendGroupID)
+     {
+         if (! requestID in outstandingUserRequestMap)
+         {
+             IMUtil.dPrint('\n\nError in userRespAddFriend.  ' +
+                           'Cannot find associated requestID.\n\n');
+             return;
+         }
+
+         //add friend.  See format for how friend addition requests
+         //are stored in reqMapEntry in @see tryAddFriend
+         outstandingUserRequestMap[requestID][1](
+             newFriendName,newFriendGroupID);
+
+         //remove request from pending requests.
+         delete outstandingUserRequestMap[requestID];
+     }
+     
+     /**
+      @param {visible} newFriendVis
+      @param {msg object or null} If not null, then means that this is
+      a friendship request message from some other presence in the
+      world, and, if we're adding other presence as friend, we need to
+      send a reply back saying so.
+
+      @param {String -tainted} newFriendName @see userRespAddFriend
+
+      @param {unique int} newFriendGroupID @see userRespAddFriend
+      
+      Bound in @see tryAddFriend to an outstanding friendship request
+      event.  When user clicks gui to add friend, @see
+      userRespAddFriend calls this function to complete the friendship
+      addition.
+      */
+     function completeAddFriend(newFriendVis,reqMsg,
+                                newFriendName,newFriendGroupID)
+     {
+         //already added friend ...can occur if other side sends you
+         //multiple requests, and you only confirm the first.
+         if (newFriendVis.toString() in visIDToFriendMap)
+             return;
+
+         //groupID may have vanished while you were adding friend.
+         //Unlikely, but possible.
+         if (! newFriendGroupID in groupIDToGroupMap)
+         {
+             //if wanted to, could instead go through process of
+             //adding friend again.
+             IMUtil.dPrint('\n\nWarning, no group to add new friend to.  '+
+                           'Aborting friend add.\n\n');
+             return;
+         }
+         
+         //create new friend object
+         var friendToAdd =
+             new Friend(IMUtil.htmlEscape(newFriendName), newFriendVis,
+                        this, IMUtil.getUniqueInt());
+
+         groupIDToGroupMap[newFriendGroupID].addMember(friendToAdd);
+         visIDToFriendMap[newFriendVis.toString()]    = friendToAdd;
+
+         imIDToFriendMap [friendToAdd.imID] = friendToAdd;
+
+         //Takes care of the case where the other side had initiated
+         //friendship first: we reply saying that we'd be happy to be
+         //friends.
+         if (reqMsg !== null)
+             friendToAdd.processRegReqMsg (reqMsg);
+         
          //re-display entire gui when add friend.
          this.display();
-         
-         return friendToAdd;
      }
+
 
 
      /**
@@ -179,6 +281,59 @@ system.require('hawthorneApps/im/group.em');
          this.display();
      }
 
+
+     /**
+      @param {unique int} requestRecID The unique id of a friend
+      request.  Remove from outstanding requests: we don't want to be
+      friends with this person.
+      */
+     function friendRequestReject(requestRecID)
+     {
+         if (!requestRecID in outstandingUserRequestMap)
+         {
+             IMUtil.dPrint('\nError in friendRequestReject.  ' +
+                           'Do not have record for this requestID.\n');
+             return;
+         }
+         
+         delete outstandingUserRequestMap[requestRecID];
+     }
+
+
+     /**
+      @param {unique int} requestRecID The unique id of a friend
+      request.  Pop up a gui asking for what to name user and what group to put user in.
+      */
+     function friendRequestAccept(requestRecID)
+     {
+         var groupIDToGroupNames= null;
+         for (var s in groupIDToGroupMap)
+         {
+             if (groupIDToGroupNames === null)
+                 groupIDToGroupNames = { };
+             groupIDToGroupNames [s] = groupIDToGroupMap[s].groupName;        
+         }
+
+         //have no groups.  create one: default
+         if (groupIDToGroupNames === null)
+         {
+             var newGroup = new Group(
+                 'defualt', IMUtil.getUniqueInt(), '','',true,this);
+
+             groupIDToGroupNames = {};
+
+             groupIDToGroupMap[newGroup.groupID]   = newGroup;
+             groupIDToGroupNames[newGroup.groupID] = newGroup.groupName;
+             this.display();
+         }
+         
+         //the internal js will pop up asking us what we want to name
+         //the new friend, and what group we want to put the new
+         //friend in.
+         this.guiMod.call('melvilleAppGuiNewFriendGroupID',
+                          requestRecID, groupIDToGroupNames);
+     }
+     
      
      //"this" is automatically bound to AppGui object in @see AppGui
      //constructor. Should only be called through event in html gui.
@@ -193,6 +348,16 @@ system.require('hawthorneApps/im/group.em');
          this.guiMod.bind('melvilleAddGroup',
                           std.core.bind(melvilleAddGroup,this));
 
+         this.guiMod.bind('friendRequestReject',
+                         std.core.bind(friendRequestReject,this));
+
+         this.guiMod.bind('friendRequestAccept',
+                          std.core.bind(friendRequestAccept,this));
+         
+         this.guiMod.bind('userRespAddFriend',
+                          std.core.bind(userRespAddFriend,this));
+         
+         
          
          //still must clear pendingEvents.
          //only want to execute last display event.
@@ -204,6 +369,16 @@ system.require('hawthorneApps/im/group.em');
                  internalWarn(this, this.pendingEvents[s][1]);
              else if (this.pendingEvents[s][0] == DISPLAY_EVENT)
                  displayEvent = true;
+             else if (this.pendingEvents[s][0] == TRY_ADD_EVENT)
+             {
+                 //@see the structure for TRY_ADD_EVENTS defined
+                 //in @tryAddFriend
+                 var wrappedTryAddFriend =
+                     std.core.bind(tryAddFriend,this,
+                                   this.pendingEvents[s][1],
+                                   this.pendingEvents[s][2]);
+                 wrappedTryAddFriend();
+             }
          }
 
          if (displayEvent)
@@ -249,10 +424,11 @@ system.require('hawthorneApps/im/group.em');
          //see.
          function proxAddedCallback(visAdded)
          {
-             var newFriend = wrappedTryAddFriend(visAdded);
-             if (newFriend !== null)
-                 IMUtil.dPrint('\n\nTrying to add new friend through prox.\n\n');
-                 
+             if (visAdded.toString() == system.self.toString())
+                 return;
+             
+             IMUtil.dPrint('\n\nTrying to add new friend through prox.\n\n');
+             wrappedTryAddFriend(visAdded,null);
          }
 
          //additional true field indicates to also call handling
@@ -275,11 +451,7 @@ system.require('hawthorneApps/im/group.em');
              if (sender.toString() in visIDToFriendMap)
                  friendToProcMsg = visIDToFriendMap[sender.toString()];
              else
-                 friendToProcMsg = wrappedTryAddFriend(sender);
-             
-             if (friendToProcMsg !== null)
-                 friendToProcMsg.processRegReqMsg(msg);
-             
+                 friendToProcMsg = wrappedTryAddFriend(sender,msg);
          }
 
          
@@ -640,7 +812,8 @@ system.require('hawthorneApps/im/group.em');
 
                      //display current group on top
                      htmlToDisplay += '<option value=' + groupID.toString() +
-                         'selected>' + groupName;
+                         ' selected="selected">' + groupName;
+                     htmlToDisplay += '</option>';
 
                      for (var fullGroupsIter in fullGroups)
                      {
@@ -651,7 +824,9 @@ system.require('hawthorneApps/im/group.em');
                          {
                              htmlToDisplay += '<option value=' +
                                  gID.toString() +'>';
-                             htmlToDisplay += gName;                                 
+                             htmlToDisplay += gName;
+                             htmlToDisplay += '</option>';
+                             
                          }
                      }
 
@@ -691,6 +866,11 @@ system.require('hawthorneApps/im/group.em');
          melvilleWarnWindow.hide();
 
 
+
+
+
+         
+
          //displays warning messages in new gui.
          warnAppGui = function(toWarnWith)
          {
@@ -699,8 +879,104 @@ system.require('hawthorneApps/im/group.em');
          };
 
 
+
+         
+         function genAddFriendRequestID(userReqID)
+         {
+             return '__friend_requestID__' + userReqID.toString();
+         }
+         function genAddFriendRequestDivYesID(userReqID)
+         {
+             return '_friend_req_div_yes_id__' + userReqID.toString();
+         }
+
+         function genAddFriendRequestDivNoID(userReqID)
+         {
+             return '_friend_req_div_no_id_' + userReqID.toString();
+         }
+         
          /**
-          param {unique int} friendID Integer representing the id of
+          \param {string} visid Presence id of the visible that we
+          want to add as friend
+          
+          \param {unique int} userReqID unique identifier used to
+          ensure that the user's response is associated with the
+          correct request when function returns.
+
+          This function gets called through Emerson, it opens the warn
+          gui window asking the user if he/she wants to become friends
+          with a visible that he/she currently is not friends with.
+          */
+         checkAddFriend = function(visID, userReqID)
+         {
+             //add text to the warn window
+             var moreFriendsText = '';
+
+             moreFriendsText += '<div id="' +
+                 genAddFriendRequestID(userReqID) +
+                 '">';
+
+             moreFriendsText += 'Do you want to become friends with: ' +
+                 visID + '?';
+
+             //div for yes and no
+             moreFriendsText += '<div id="' +
+                 genAddFriendRequestDivYesID(userReqID) + '" ' +
+                 'onclick="melvilleAppGuiAddFriendYesClicked(' +
+                 userReqID.toString() + ')"' +  // closes onclick
+                 '>'  +  // closes open div
+                 '<b>Yes</b></div>';
+
+             moreFriendsText += '<div id="' +
+                 genAddFriendRequestDivNoID(userReqID) + '" ' +
+                 'onclick="melvilleAppGuiAddFriendNoClicked(' +
+                 userReqID.toString() + ')"' + // closes onclick
+                 '>'  +  // closes open div
+                 '<b>No</b></div>';
+
+             //close the div asking whether to add this friend.
+             moreFriendsText += '</div>';
+
+             //actually add the request message to the warn gui.
+             $('#melville-chat-warn-gui').append(moreFriendsText);
+             
+             //expose the warn window
+             melvilleWarnWindow.show();
+         };
+
+
+
+         /**
+          \param {unique int} userReqID A unique id for tracking this
+          friend request.
+
+          We don't want to add the friend.  Tell emerson code to clear
+          request from outstanding.  Also, remove the request from
+          those outstanding.
+          */
+         melvilleAppGuiAddFriendNoClicked = function(userReqID)
+         {
+             sirikata.event('friendRequestReject', userReqID);
+             $('#' + genAddFriendRequestID(userReqID)).remove();
+         };
+
+         /**
+          \param {unique int} userReqID A unique id for tracking this
+          friend request.
+
+          We want want to add the friend.  Message down to base
+          Emerson code.  Emerson code generates updated set of group
+          ids, and asks you which group you want to put the user into.
+          */
+         melvilleAppGuiAddFriendYesClicked = function (userReqID)
+         {
+             sirikata.event('friendRequestAccept', userReqID);
+             $('#' + genAddFriendRequestID(userReqID)).remove();
+         };
+         
+
+         /**
+          \param {unique int} friendID Integer representing the id of
           the friend user clicked on.
           */
          melvilleAppGuiFriendClicked  = function (friendID)
@@ -815,7 +1091,6 @@ system.require('hawthorneApps/im/group.em');
                  return; 
              }
 
-
              if (itemToToggle.style.display==='none')
              {
                  //makes text visible.
@@ -831,6 +1106,124 @@ system.require('hawthorneApps/im/group.em');
                  sirikata.event('melvilleAddGroup', newGroupName,
                                 newGroupStatus, newGroupProfile);
              }
+         };
+
+
+
+
+         function generateNewFriendGroupDivID (requestRecID)
+         {
+             return requestRecID.toString() + '___newFriendID';
+         }
+
+
+         function genFriendChangeGroupSelectIDFromRequestID(requestRecID)
+         {
+             return requestRecID.toString() + '__GroupSelectID__';
+         }
+
+         function genFriendChangeNameTextAreaIDFromRequestID(requestRecID)
+         {
+             return requestRecID.toString() + '_textAreaIDFromRequestID__';
+         }
+
+         function genNewFriendSubmitDataID(requestRecID)
+         {
+             return requestRecID.toString() + '_submitDataID___';
+         }
+
+         
+         /**
+          \param {unique int} requestRecID the id of the request for
+          friendship.  Should be passed back to Emerson layer to
+          associate the user's repsonse to this request with the
+          request itself.
+
+          \param {array <unique int, string>} groupIDToGroupNames
+          Lists all available groups to add friend to.
+          */
+         melvilleAppGuiNewFriendGroupID = function(
+             requestRecID,groupIDToGroupNames)
+         {
+             var windowID = generateNewFriendGroupDivID(requestRecID);
+
+             $('<div>'   +
+               '</div>' //end div at top.
+              ).attr({id:windowID,title:'melvilleFriendRequest'}).appendTo('body');
+                          
+             var melvilleFriendCompleteWindow = new sirikata.ui.window(
+                 '#' + windowID,
+                 {
+	             autoOpen: false,
+	             height: 'auto',
+	             width: 300,
+                     height: 300,
+                     position: 'right'
+                 }
+             );
+             
+             var htmlToDisplay = 'What do you want to name your ' +
+                 'new friend?  What group do you want to put ' +
+                 'your new friend in? <br/><br/>';
+             
+             htmlToDisplay += 'friend name: <textarea id="'+
+                 genFriendChangeNameTextAreaIDFromRequestID(requestRecID) +
+                 '">' + 'some name' +
+                 '</textarea> <br/>';
+
+             htmlToDisplay += 'group: <select id="'+
+                 genFriendChangeGroupSelectIDFromRequestID(requestRecID) +
+                 '">';
+
+
+             var firstItem = true;
+             for (var s in groupIDToGroupNames)
+             {
+                 htmlToDisplay += '<option value=' + s.toString() + ' ';
+                 if (firstItem)
+                 {
+                     htmlToDisplay += 'selected="selected"';
+                     firstItem = false;
+                 }
+                 htmlToDisplay += '>' + groupIDToGroupNames[s];
+                 htmlToDisplay += '</option>';
+             }
+             htmlToDisplay += '</select>';
+
+
+             var submitFriendDataID = genNewFriendSubmitDataID(requestRecID);
+             htmlToDisplay += '<div id="' + submitFriendDataID + '"  ' +
+                 'onclick="newFriendDataSubmit(' + requestRecID.toString() +
+                 ')">';
+             
+             htmlToDisplay += '<b> Submit</b>';
+             htmlToDisplay += '</div>';
+
+             $('#' + windowID).append(htmlToDisplay);
+             melvilleFriendCompleteWindow.show();
+         };
+
+         /**
+          Called when user hits submit when assigning new friend to
+          group and name.
+          */
+         newFriendDataSubmit = function(requestRecID)
+         {
+             var windowID =  generateNewFriendGroupDivID(requestRecID);
+
+             var groupSelectID = 
+                 genFriendChangeGroupSelectIDFromRequestID(requestRecID);
+
+             var nameTextAreaID =
+                 genFriendChangeNameTextAreaIDFromRequestID(requestRecID);
+
+
+             var newName = $('#' + nameTextAreaID).val();
+             var newGroup = $('#' + groupSelectID).val();
+
+             
+             $('#' +windowID).remove();
+             sirikata.event('userRespAddFriend',requestRecID,newName,newGroup);
          };
          
          @;
