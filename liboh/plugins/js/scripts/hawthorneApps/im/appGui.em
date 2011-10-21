@@ -361,14 +361,11 @@ system.require('hawthorneApps/im/group.em');
          
          //still must clear pendingEvents.
          //only want to execute last display event.
-         var displayEvent = false;
          this.guiInitialized = true;
          for (var s in this.pendingEvents)
          {
              if (this.pendingEvents[s][0] == WARN_EVENT)
                  internalWarn(this, this.pendingEvents[s][1]);
-             else if (this.pendingEvents[s][0] == DISPLAY_EVENT)
-                 displayEvent = true;
              else if (this.pendingEvents[s][0] == TRY_ADD_EVENT)
              {
                  //@see the structure for TRY_ADD_EVENTS defined
@@ -379,11 +376,15 @@ system.require('hawthorneApps/im/group.em');
                                    this.pendingEvents[s][2]);
                  wrappedTryAddFriend();
              }
+             else if (this.pendingEvents[s][0] == DISPLAY_EVENT)
+             {
+                 //we're already going to display at the end of this
+                 //function.  Therefore, we can effectively ignore
+                 //this event.
+             }
          }
 
-         if (displayEvent)
-             internalDisplay(this);
-         
+         internalDisplay(this);
          this.pendingEvents = [];
      }
 
