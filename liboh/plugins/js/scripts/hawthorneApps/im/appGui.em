@@ -20,7 +20,33 @@ system.require('hawthorneApps/im/group.em');
 
      var OUTSTANDING_REQ_FRIENDSHIP_EVENT =
          'OUTSTANDING_REQ_FRIENDSHIP_EVENT';
+
+     //create a utility class to manage outstanding friendship requests.
+     var OutFriendshipReqUtil =
+         {
+             createOutstandingFriendRequest: function(cbackFunc,appgui,potFriendVis,regMsg)
+             {
+                 return [OUTSTANDING_REQ_FRIENDSHIP_EVENT,
+                         std.core.bind(cbackFunc,appgui,potFriendVis,regMsg),
+                         potFriendVis.toString()];
+             },
+
+             getCbackToExecOnAdd: function(entry)
+             {
+                 return entry[1];
+             },
+             getWhoFriendingID: function(entry)
+             {
+                 return entry[2];
+             },
+             
+             isOutstandingFriendshipReq : function(entry)
+             {
+                 return (entry[0] === OUTSTANDING_REQ_FRIENDSHIP_EVENT);
+             }
+         };
      
+
      var proxHandler    = null;
      var requestHandler = null;
 
@@ -28,7 +54,8 @@ system.require('hawthorneApps/im/group.em');
      var DISPLAY_EVENT  = 'DISPLAY_EVENT';
      var TRY_ADD_EVENT  = 'TRY_ADD_EVENT';
      
-     
+
+
      /**
       @param {visible} potentialFriend
 
@@ -59,15 +86,49 @@ system.require('hawthorneApps/im/group.em');
              this.pendingEvents.push(newPendingEvent);
              return;
          }
-             
-             
-         var outUserReqID = IMUtil.getUniqueInt();
-         var reqMapEntry  = [OUTSTANDING_REQ_FRIENDSHIP_EVENT,
-                             std.core.bind(completeAddFriend,
-                                           this,
-                                           potentialFriend,
-                                           reqMsg)];
 
+         //check if we are already waiting on the user to validate
+         //this friend.
+         for (var s in outstandingUserRequestMap)
+         {
+             var mapEntry = outstandingUserRequestMap[s];
+
+             var isFriendshipReq =
+                 OutFriendshipReqUtil.isOutstandingFriendshipReq(
+                     mapEntry);
+
+             if (isFriendshipReq)
+             {
+                 var whoFriendingID =
+                     OutFriendshipReqUtil.getWhoFriendingID(mapEntry);
+                 if (whoFriendingID == potentialFriend.toString())
+                 {
+                     //means that we've already sent a
+                     //friendship request to the user about
+                     //this potential friend.
+
+                     //because this request has a message, overwrite
+                     //previous entry so that we'll reply to the most
+                     //recent friendship request.
+                     if (reqMsg !== null)
+                     {
+                         var newEntry =
+                             OutFriendshipReqUtil.createOutstandingFriendRequest(
+                                 completeAddFriend, this, potentialFriend, reqMsg);
+                     
+                         outstandingUserRequestMap[s] = newEntry;                             
+                     }
+
+                     //already waiting on user can return.
+                     return;
+                 }
+             }
+         }
+         
+         var outUserReqID = IMUtil.getUniqueInt();
+         var reqMapEntry  =
+             OutFriendshipReqUtil.createOutstandingFriendRequest(
+                 completeAddFriend, this, potentialFriend, reqMsg);
 
          outstandingUserRequestMap[outUserReqID] = reqMapEntry;
          this.guiMod.call(
@@ -96,11 +157,24 @@ system.require('hawthorneApps/im/group.em');
              return;
          }
 
-         //add friend.  See format for how friend addition requests
-         //are stored in reqMapEntry in @see tryAddFriend
-         outstandingUserRequestMap[requestID][1](
-             newFriendName,newFriendGroupID);
+         //add friend.  Check to ensure that the requestID is
+         //associated with a friendship request and execute the
+         //friendship request's callback.
+         var outReqEntry = outstandingUserRequestMap[requestID];
+         if (!OutFriendshipReqUtil.isOutstandingFriendshipReq(
+                 outReqEntry))
+         {
+             IMUtil.dPrint('\n\nError in userRespAddFriend.  ' +
+                           'Do not have a friendship request stored ' +
+                           'for this id.\n\n');
+             return;
+         }
 
+         //callback to execute.  @see OutFriendshipReqUtil for type
+         //signature.
+         var cback = OutFriendshipReqUtil.getCbackToExecOnAdd(outReqEntry);
+         cback(newFriendName,newFriendGroupID);
+         
          //remove request from pending requests.
          delete outstandingUserRequestMap[requestID];
      }
@@ -146,7 +220,7 @@ system.require('hawthorneApps/im/group.em');
                         this, IMUtil.getUniqueInt());
 
          groupIDToGroupMap[newFriendGroupID].addMember(friendToAdd);
-         visIDToFriendMap[newFriendVis.toString()]    = friendToAdd;
+         visIDToFriendMap[newFriendVis.toString()] = friendToAdd;
 
          imIDToFriendMap [friendToAdd.imID] = friendToAdd;
 
@@ -358,7 +432,6 @@ system.require('hawthorneApps/im/group.em');
                           std.core.bind(userRespAddFriend,this));
          
          
-         
          //still must clear pendingEvents.
          //only want to execute last display event.
          this.guiInitialized = true;
@@ -443,18 +516,21 @@ system.require('hawthorneApps/im/group.em');
          //we have any friends corresponding to the sender of the
          //friend request.  If we do, then we ask the friend to
          //process the request.
-         //If we do not, then, we check if we should add the other
-         //side as a friend.  If we should, we construct a new friend
-         //object, and ask it to handle the registration request.
+         //If we do not, then, call tryAddFriend, which checks if we're
+         //already processing a request to add the friend, and whether the
+         //user wants to add as friend.
          function handleRegRequest(msg, sender)
          {
-             var friendToProcMsg = null;
-             if (sender.toString() in visIDToFriendMap)
-                 friendToProcMsg = visIDToFriendMap[sender.toString()];
-             else
-                 friendToProcMsg = wrappedTryAddFriend(sender,msg);
-         }
 
+             //do we already have a friend with this id
+             if (sender.toString() in visIDToFriendMap)
+             {
+                 var friendToProcMsg = visIDToFriendMap[sender.toString()];
+                 friendToProcMsg.processRegReqMsg (msg);
+             }
+             else
+                 wrappedTryAddFriend(sender,msg);
+         }
          
          //actually set the handler for registration requests.
          requestHandler = std.core.bind(handleRegRequest,this) <<
