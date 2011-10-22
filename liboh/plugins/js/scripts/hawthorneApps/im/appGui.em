@@ -173,7 +173,7 @@ system.require('hawthorneApps/im/group.em');
          //callback to execute.  @see OutFriendshipReqUtil for type
          //signature.
          var cback = OutFriendshipReqUtil.getCbackToExecOnAdd(outReqEntry);
-         cback(newFriendName,newFriendGroupID);
+         cback(IMUtil.htmlEscape(newFriendName),newFriendGroupID);
          
          //remove request from pending requests.
          delete outstandingUserRequestMap[requestID];
