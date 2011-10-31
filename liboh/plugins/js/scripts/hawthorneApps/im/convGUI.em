@@ -29,7 +29,7 @@ system.require('hawthorneApps/im/imUtil.em');
          this.pendingEvents = [];
          this.guiMod = simulator._simulator.addGUITextModule(
              guiName(name),
-             getGUIText(name),
+             getGUIText(name,this),
              std.core.bind(guiInitFunc,this)
          );
      };
@@ -121,12 +121,34 @@ system.require('hawthorneApps/im/imUtil.em');
          this.pendingEvents = [];
      }
 
+     //create unique function names
+     function constructWarnFuncName(convGUI)
+     {
+         return 'melville_conv_gui_warn__' + convGUI.uiID.toString();
+     }
+
+     function constructWriteFriendFuncName(convGUI)
+     {
+         return 'melville_conv_gui_write_friend__' + convGUI.uiID.toString();
+     }
+
+     function constructWriteMeFuncName(convGUI)
+     {
+         return 'melville_conv_gui_write_me__' + convGUI.uiID.toString();
+     }
+     
+     function constructChangeFriendFuncName(convGUI)
+     {
+         return 'melville_conv_gui_change_name__' + convGUI.uiID.toString();
+     }
+
+     
      /**
       @param {string-untainted} toWarnWith
       */
      function internalWarn(convGUI,toWarnWith)
      {
-         convGUI.guiMod.call('warn',toWarnWith);
+         convGUI.guiMod.call(constructWarnFuncName(convGUI),toWarnWith);
      }
 
      /**
@@ -134,7 +156,7 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      function internalWriteFriend(convGUI,message)
      {
-         convGUI.guiMod.call('writeFriend',message);
+         convGUI.guiMod.call(constructWriteFriendFuncName(convGUI),message);
      }
 
      /**
@@ -142,7 +164,7 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      function internalWriteMe(convGUI,message)
      {
-         convGUI.guiMod.call('writeMe',message);
+         convGUI.guiMod.call(constructWriteMeFuncName(convGUI),message);
      }
 
      /**
@@ -150,11 +172,11 @@ system.require('hawthorneApps/im/imUtil.em');
       */
      function internalChangeFriendName(convGUI,newName)
      {
-         convGUI.guiMod.call('changeFriendName',newName);
+         convGUI.guiMod.call(constructChangeFriendFuncName(convGUI),newName);
      }
 
 
-     function getGUIText(friendName)
+     function getGUIText(friendName,convGUI)
      {
          var returner = "sirikata.ui('" + guiName(friendName) + "',";
          returner += 'function(){ ';
@@ -162,7 +184,27 @@ system.require('hawthorneApps/im/imUtil.em');
 
          returner += 'var FRIEND_NAME  = "'+friendName+'";';
 
+         //initializing several functions that will return unique
+         //values for each convGUI.  This way, can have multiple
+         //convGUIs open at once without conflict.
 
+
+         //history text id
+         returner += 'var getMelvilleHistoryID = function() { return ';
+         returner += '"history__' + convGUI.uiID.toString() + '";};';
+
+         //text area for melville input id
+         returner += 'var getMelvilleTareaID = function(){ return ';
+         returner += '"melvilletraea__'+convGUI.uiID.toString() + '";};';
+         
+         //chat button id
+         returner += 'var getMelvilleChatButtonID = function(){ return ';
+         returner += '"melvilleChatButton__' + convGUI.uiID.toString() + '";};';
+
+         //melville dialog id
+         returner += 'var getMelvilleDialogID = function(){ return ';
+         returner += '"melvilleDialogID__' + convGUI.uiID.toString() + '";};';
+         
          
          //fill in guts of function to execute for gui module
          returner += @
@@ -178,19 +220,19 @@ system.require('hawthorneApps/im/imUtil.em');
 
          //actual window code
          $('<div>' + 
-              '<div id="history" style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
+              '<div id=' + getMelvilleHistoryID() + ' style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
               '</div>' + //end history
           
-              '<input value="" id="melvilletarea" style="width:250px;">' +
+              '<input value="" id=' + getMelvilleTareaID() + ' style="width:250px;">' +
               '</input>' +
 
-              '<button id="melvilleChatButton">Enter</button>' +
+              '<button id=' + getMelvilleChatButtonID() + '>Enter</button>' +
           
           '</div>' //end div at top.
-          ).attr({id:'melville-dialog',title:'melville'}).appendTo('body');
+          ).attr({id: getMelvilleDialogID(),title:'melville'}).appendTo('body');
 
          var melvilleWindow = new sirikata.ui.window(
-            '#melville-dialog',
+            '#' + getMelvilleDialogID(),
             {
 	        autoOpen: false,
 	        height: 'auto',
@@ -205,62 +247,70 @@ system.require('hawthorneApps/im/imUtil.em');
          //can send it to other listeners.
          var submitUserTextToEmerson = function()
          {
-             sirikata.event('userInput',$('#melvilletarea').val());
-             $('#melvilletarea').val('');
+             sirikata.event('userInput',$('#' + getMelvilleTareaID()).val());
+             $('#' + getMelvilleTareaID()).val('');
          };
          
-         sirikata.ui.button('#melvilleChatButton').click(
+         sirikata.ui.button('#' + getMelvilleChatButtonID()).click(
              submitUserTextToEmerson);
 
          melvilleWindow.show();
 
          
+         //appends the string to the end of the scrolling chat log.
+         var writeToLog = function (msgToWrite)
+         {
+             $('#' + getMelvilleHistoryID()).append(msgToWrite + '<br />');
+             //in case user had previously closed the window.
+             //auto-scrolls to end of conversation.
+             var objDiv = document.getElementById(getMelvilleHistoryID());
+             objDiv.scrollTop = objDiv.scrollHeight;
+             melvilleWindow.show();
+         }
+
          
+         @;
+
          //internal to gui display
-         writeMe = function(msg)
+         returner += constructWriteMeFuncName(convGUI) + '=';
+         returner += @
+         function(msg)
          {
              var formattedMsg = "<font color=ME_COLOR> "
                  + ME_NAME + "</font>: " + msg;
              
              writeToLog(formattedMsg);
          };
+         @;
 
          //internal to gui display
-         writeFriend = function(msg)
+         returner += constructWriteFriendFuncName(convGUI) + '=';
+         returner += @ function(msg)
          {
              var formattedMsg = "<font color=FRIEND_COLOR> "
                  + FRIEND_NAME + "</font>: " + msg;
              
              writeToLog(formattedMsg);
          };
-
+         @
+         
          //internal to gui display
-         warn = function(msg)
+         returner += constructWarnFuncName(convGUI) + '=';
+         returner += @ function(msg)
          {
              var formattedMsg = "<font color=SYS_COLOR> "
                  + SYS_NAME + "</font>: " + msg;
              
              writeToLog(formattedMsg);
          };
-
+         @;
+         
          //updates friend's name in conversation.
-         changeFriendName = function(newName)
+         returner += constructChangeFriendFuncName(convGUI) + '=';
+         returner += @function(newName)
          {
              FRIEND_NAME = newName;
          };
-
-         
-         //appends the string to the end of the scrolling chat log.
-         function writeToLog(msgToWrite)
-         {
-             $('#history').append(msgToWrite + '<br />');
-             //in case user had previously closed the window.
-             //auto-scrolls to end of conversation.
-             var objDiv = document.getElementById("history");
-             objDiv.scrollTop = objDiv.scrollHeight;
-             melvilleWindow.show();
-         }
-
 
 
          //handles shift+enter submitting message to other end
@@ -274,12 +324,10 @@ system.require('hawthorneApps/im/imUtil.em');
 
          //copied from chat.js
          var registerHotkeys = function() {
-             var register_area = document.getElementById('melvilletarea');
+             var register_area = document.getElementById(getMelvilleTareaID());
              register_area.onkeyup = handleMelvilleTareaKeyUp;
          };
          registerHotkeys();
-
-         
          @;
          
          
