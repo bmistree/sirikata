@@ -26,6 +26,8 @@ system.require('hawthorneApps/im/convGUI.em');
 
      @param{unique int} imID - Each friend has a unique id associated
      with it.
+
+     Each friend sends imID to friend and sets up handlers listening for those imIDs
      */
     Friend = function(name, vis, appGui, imID)
     {
@@ -44,7 +46,12 @@ system.require('hawthorneApps/im/convGUI.em');
 
         this.profileToFriend = this.appGui.getProfilePresenting(this.imID);
         this.profileFromFriend = "Registering";
-        
+
+        //every message that we send to friend should have their
+        //friendID expliclty included (helps distinguish direct
+        //messages from room messages).
+        this.friendID = null;
+
         this.topicsDiscussed = [];
 
         this.appGui.display(this.imID);
@@ -64,7 +71,7 @@ system.require('hawthorneApps/im/convGUI.em');
     {
         this.profileToFriend = newProf;
         if (this.connStatus == CONNECTED_CONV)
-            {'imProf':newProf } >> this.vis >> [];
+            {'imProf':newProf, 'friendID': this.friendID } >> this.vis >> [];
     };
 
 
@@ -76,7 +83,7 @@ system.require('hawthorneApps/im/convGUI.em');
     {
         this.statusToFriend = newStatus;
         if (this.connStatus == CONNECTED_CONV)
-            {'imStatus':newStatus } >> this.vis >> [];
+            {'imStatus':newStatus, 'friendID': this.friendID } >> this.vis >> [];
     };
 
 
@@ -97,9 +104,11 @@ system.require('hawthorneApps/im/convGUI.em');
      */
     Friend.prototype.processRegReqMsg = function (msg)
     {
+        this.friendID = msg.mID;
         var replyPart = {
             'status':  this.statusToFriend,
-            'profile': this.profileToFriend
+            'profile': this.profileToFriend,
+            'friendID': this.friendID
         };
         msg.makeReply(replyPart) >> [];
 
@@ -183,7 +192,8 @@ system.require('hawthorneApps/im/convGUI.em');
         var wrappedRegResponse = std.core.bind(
             regResponse,this);
         
-        { 'imRegRequest': 1}  >> this.vis >>
+        { 'imRegRequest': 1, 'mID': this.imID}
+            >> this.vis >>
             [ wrappedRegResponse, REGISTRATION_TIMEOUT, wrappedNoRegResponse];
 
     };
@@ -261,8 +271,10 @@ system.require('hawthorneApps/im/convGUI.em');
         
         //send the message to the other side & output it to
         //conversation gui
-        {'imMsg': msgToSend} >> this.vis >>
+        {'imMsg': msgToSend, 'friendID': this.friendID} >>
+            this.vis >>
             [ function(){},MESSAGE_TIMEOUT,wrappedMsgUnacked];
+
     };
 
     /**
@@ -355,23 +367,22 @@ system.require('hawthorneApps/im/convGUI.em');
         var wrappedHandleMessage = std.core.bind(
             handleMessage,this);
 
-        this.msgHandler = wrappedHandleMessage << {'imMsg'::} << this.vis;
-
+        this.msgHandler = wrappedHandleMessage <<
+            [{'imMsg'::},{'friendID':this.imID:}] << this.vis;
 
         //handler for status updates
         var wrappedHandleStatusMessage = std.core.bind(
             handleStatusMessage,this);
     
         this.statusUpdateHandler = wrappedHandleStatusMessage <<
-            {'imStatus'::} << this.vis;
-
+            [{'imStatus'::}, {'friendID':this.imID:}] << this.vis;
 
         //handler for profile updates
         var wrappedHandleProfMessage = std.core.bind(
             handleProfMessage,this);
         
         this.profUpdateHandler = wrappedHandleProfMessage <<
-            {'imProf'::} << this.vis;
+            [{'imProf'::},{'friendID':this.imID:}] << this.vis;
     };
 
     

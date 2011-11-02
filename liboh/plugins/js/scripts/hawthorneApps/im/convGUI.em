@@ -267,8 +267,6 @@ system.require('hawthorneApps/im/imUtil.em');
              objDiv.scrollTop = objDiv.scrollHeight;
              melvilleWindow.show();
          }
-
-         
          @;
 
          //internal to gui display
