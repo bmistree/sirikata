@@ -10,6 +10,7 @@ system.require('hawthorneApps/im/convGUI.em');
     var CONNECTED_CONV             =  1;
     var OTHER_SIDE_NON_RESPONSIVE  =  2;
     
+    
     var REGISTRATION_TIMEOUT       = 20;
     var MESSAGE_TIMEOUT            =  5;
 
@@ -22,29 +23,42 @@ system.require('hawthorneApps/im/convGUI.em');
      friend.
 
      @param{ApplicationGUI} appGui - Gui object for application.  @see
-     appGui.em
+     appGui.em.  If this is a room friend, then appGui is a Room
+     object.  @see room.em.  Room objects implement all the same
+     behaviors as AppGui objects.
 
      @param{unique int} imID - Each friend has a unique id associated
      with it.
 
-     Each friend sends imID to friend and sets up handlers listening for those imIDs
+     @param {ConvGUI} convGUI (optional) - This value may be
+     undefined.  In these instances, create own gui.  @see convGUI.em.
+     Note a Room object (@see room.em) may be passed in as well.  Room
+     objects implement all the same behaviors as ConvGUI objects.
+
+     Each friend sends imID to friend and sets up handlers listening
+     for those imIDs
      */
-    Friend = function(name, vis, appGui, imID)
+    Friend = function(name, vis, appGui, imID, convGUI,isRoomFriend)
     {
         //how the friend name will be displayed on the friend's list.
         this.name       = IMUtil.htmlEscape(name);
         this.vis        = vis;
         this.appGui     = appGui;
+
         //starts out not in a conversation with friend
         this.convGUI    = null;
+        if (typeof(convGUI) != 'undefined')
+            this.convGUI = convGUI;
+
+        this.isRoomFriend = (isRoomFriend === true);
 
         //friendID: note maybe could just use the visible id.
         this.imID       = imID;
         
-        this.statusToFriend = this.appGui.getStatusPresenting(this.imID);
+        this.statusToFriend = "Default status";
         this.statusFromFriend  = "Registering";
 
-        this.profileToFriend = this.appGui.getProfilePresenting(this.imID);
+        this.profileToFriend = "Default profile";
         this.profileFromFriend = "Registering";
 
         //every message that we send to friend should have their
@@ -56,7 +70,7 @@ system.require('hawthorneApps/im/convGUI.em');
 
         this.appGui.display(this.imID);
 
-        //connection status
+        //connection status        
         this.connStatus = REGISTRATION;
         this.beginRegistration();
         this.setupMessageListeners();
@@ -83,7 +97,11 @@ system.require('hawthorneApps/im/convGUI.em');
     {
         this.statusToFriend = newStatus;
         if (this.connStatus == CONNECTED_CONV)
-            {'imStatus':newStatus, 'friendID': this.friendID } >> this.vis >> [];
+        {
+            {'imStatus':newStatus,
+             'friendID': this.friendID } >> this.vis >> [];                
+        }
+
     };
 
 
@@ -95,7 +113,9 @@ system.require('hawthorneApps/im/convGUI.em');
     {
         this.name = newName;
         if (this.convGUI !== null)
-            this.convGUI.changeFriendName(newName);
+            this.convGUI.changeFriendName(newName);                
+
+
     };
     
     /**
@@ -156,7 +176,8 @@ system.require('hawthorneApps/im/convGUI.em');
             //if cannot parse message as a registration response, or
             //if registration was declined, then
             //just treat as if we got no registration response.
-            noRegResponse();                
+            var wrappedNoRegResponse = std.core.bind(noRegResponse,this);
+            wrappedNoRegResponse();                
         }
     }
 
@@ -188,16 +209,26 @@ system.require('hawthorneApps/im/convGUI.em');
         var wrappedNoRegResponse = std.core.bind(
             noRegResponse,this);
 
-
         var wrappedRegResponse = std.core.bind(
             regResponse,this);
+
         
-        { 'imRegRequest': 1, 'mID': this.imID}
+        { 'imRegRequest': 1, 'mID': this.imID, 'room': this.isRoomFriend}
             >> this.vis >>
             [ wrappedRegResponse, REGISTRATION_TIMEOUT, wrappedNoRegResponse];
-
     };
 
+
+    /**
+     Returns true if friend is in a state where he/she can send.
+     */
+    Friend.prototype.canSend = function ()
+    {
+        return (this.connStatus == CONNECTED_CONV);
+    };
+
+    
+    
     /**
      If do not already have a convGUI object for this friend, create
      one.  Otherwise, do nothing.
@@ -205,7 +236,7 @@ system.require('hawthorneApps/im/convGUI.em');
     Friend.prototype.beginConversation = function()
     {
         if (this.convGUI === null)
-            this.convGUI = new ConvGUI(this.name,this);                
+            this.convGUI = new ConvGUI(this.name,this);                                
     };
     
     
@@ -310,6 +341,12 @@ system.require('hawthorneApps/im/convGUI.em');
      */
     function handleMessage(msg,sender)
     {
+        IMUtil.dPrint('\n\nReceived a message: ');
+        IMUtil.dPrint(msg.imMsg);
+        IMUtil.dPrint('\n');
+        IMUtil.dPrint('This is isRoomFriend: ' + this.isRoomFriend.toString());
+        IMUtil.dPrint('\n\n');
+
         if (typeof(msg.imMsg) != 'string')
             return;
             
@@ -363,6 +400,7 @@ system.require('hawthorneApps/im/convGUI.em');
      */
     Friend.prototype.setupMessageListeners = function()
     {
+        IMUtil.dPrint('\n\nSetting up message listeners\n\n');
         //handler for receiving conversation messages
         var wrappedHandleMessage = std.core.bind(
             handleMessage,this);

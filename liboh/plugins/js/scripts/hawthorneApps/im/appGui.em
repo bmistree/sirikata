@@ -1,13 +1,14 @@
 system.require('hawthorneApps/im/friend.em');
 system.require('hawthorneApps/im/imUtil.em');
 system.require('hawthorneApps/im/group.em');
-
+system.require('hawthorneApps/im/room.em');
 
 
 (function()
  {
      var IM_APP_NAME = 'MelvilleIM';
      var visIDToFriendMap  = {};
+     var visRoomIDToFriendMap = {};
      var imIDToFriendMap   = {};
 
      var groupIDToGroupMap = {};
@@ -47,14 +48,33 @@ system.require('hawthorneApps/im/group.em');
          };
      
 
-     var proxHandler    = null;
-     var requestHandler = null;
+     /**
+      @param {visible} vis - potential friend we're connecting to.
+      
+      @param {imRegRequest message object} reqMsg - @see friend.em
+      (especially message format sent out by beginRegistration.)
 
-     var WARN_EVENT     = 'WARN_EVENT';
-     var DISPLAY_EVENT  = 'DISPLAY_EVENT';
-     var TRY_ADD_EVENT  = 'TRY_ADD_EVENT';
+      Takes in a potential friend and the request message (should be
+      for a room request) that the friend sent in and returns a code 
+      for this message unique to the sender/room pair.
+      */
+     function hashRoomVis(vis, reqMsg)
+     {
+         var returner = vis.toString() + '-----';
+         returner += reqMsg.mID.toString();
+         return returner;
+     }
+
      
+     var proxHandler         = null;
+     var requestHandler      = null;
+     var roomRequestHandler  = null;
 
+     var WARN_EVENT          = 'WARN_EVENT';
+     var DISPLAY_EVENT       = 'DISPLAY_EVENT';
+     var TRY_ADD_EVENT       = 'TRY_ADD_EVENT';
+     
+     
 
      /**
       @param {visible} potentialFriend
@@ -71,12 +91,32 @@ system.require('hawthorneApps/im/group.em');
       */
      function tryAddFriend(potentialFriend,reqMsg)
      {
+         var addingRoomFriend = false;
+         if (reqMsg !== null)
+             addingRoomFriend = reqMsg.room;
+
+         IMUtil.dPrint('\n\nIn tryAddFriend.  This is addingRoomFriend: ');
+         IMUtil.dPrint(addingRoomFriend);
+         IMUtil.dPrint('\n\n');
+
          
-         if ((potentialFriend.toString() in visIDToFriendMap) ||
-             (potentialFriend.toString() == system.self.toString()))
+         //don't try to add yourself as a friend
+         if (potentialFriend.toString() == system.self.toString())
              return;
 
+         //don't add if already have a friend.
+         if ((!addingRoomFriend) &&
+             (potentialFriend.toString() in visIDToFriendMap))
+         {
+             return;
+         }
+         else if ((addingRoomFriend) &&
+                  (hashRoomVis(potentialFriend,reqMsg) in visRoomIDToFriendMap))
+         {
+             return;
+         }
 
+         
          //if the gui has not yet been initalized, hold on to this
          //event until it is.  This way, we only make internal calls
          //into gui after it's initialized.
@@ -119,6 +159,11 @@ system.require('hawthorneApps/im/group.em');
                          outstandingUserRequestMap[s] = newEntry;                             
                      }
 
+                     //lkjs;  need to change this logic around
+                     IMUtil.dPrint('\n\nIn tryAddFriend.  Filtered ' +
+                                   'because already had request\n\n');
+
+                     
                      //already waiting on user can return.
                      return;
                  }
@@ -198,10 +243,25 @@ system.require('hawthorneApps/im/group.em');
      function completeAddFriend(newFriendVis,reqMsg,
                                 newFriendName,newFriendGroupID)
      {
-         //already added friend ...can occur if other side sends you
-         //multiple requests, and you only confirm the first.
-         if (newFriendVis.toString() in visIDToFriendMap)
+         var addingRoomFriend = false;
+         if (reqMsg !== null)
+             addingRoomFriend = reqMsg.room;
+
+
+         //check if already added friend ...can occur if other side
+         //sends you multiple requests, and you only confirm the
+         //first.
+         if ((!addingRoomFriend) &&
+             (newFriendVis.toString() in visIDToFriendMap))
+         {
+             return;        
+         }
+         else if ((addingRoomFriend) &&
+                  (hashRoomVis(newFriendVis,reqMsg) in visRoomIDToFriendMap))
+         {
              return;
+         }
+                  
 
          //groupID may have vanished while you were adding friend.
          //Unlikely, but possible.
@@ -220,8 +280,16 @@ system.require('hawthorneApps/im/group.em');
                         this, IMUtil.getUniqueInt());
 
          groupIDToGroupMap[newFriendGroupID].addMember(friendToAdd);
-         visIDToFriendMap[newFriendVis.toString()] = friendToAdd;
-
+         if (!addingRoomFriend)
+         {
+             visIDToFriendMap[newFriendVis.toString()] = friendToAdd;                 
+         }
+         else
+         {
+             visRoomIDToFriendMap[hashRoomVis(newFriendVis,reqMsg)] =
+                 friendToAdd;                 
+         }
+         
          imIDToFriendMap [friendToAdd.imID] = friendToAdd;
 
          //Takes care of the case where the other side had initiated
@@ -307,7 +375,6 @@ system.require('hawthorneApps/im/group.em');
                            'Do not have friend with associated id.\n\n');
              return;                 
          }
-
 
          imIDToFriendMap[friendID].changeName(
              IMUtil.htmlEscape(newFriendName));
@@ -521,8 +588,7 @@ system.require('hawthorneApps/im/group.em');
          //user wants to add as friend.
          function handleRegRequest(msg, sender)
          {
-
-             //do we already have a friend with this id
+             //do we already have a friend with this presence id?
              if (sender.toString() in visIDToFriendMap)
              {
                  var friendToProcMsg = visIDToFriendMap[sender.toString()];
@@ -532,10 +598,41 @@ system.require('hawthorneApps/im/group.em');
                  wrappedTryAddFriend(sender,msg);
          }
          
-         //actually set the handler for registration requests.
+         //actually set the handler for registration requests that do
+         //not come from a room.
          requestHandler = std.core.bind(handleRegRequest,this) <<
-             {'imRegRequest'::};
+             [{'imRegRequest'::},{'room':false:},{'mID'::}];
+
+
+
+         function handleRoomRegRequest(msg,sender)
+         {
+             IMUtil.dPrint('\n\nGot into handleRoomRegRequest\n\n');
+             
+             if (typeof(msg.mID) != 'number')
+                 return;                     
+
+
+             var roomVisHash = hashRoomVis(sender,msg);
+
+             IMUtil.dPrint('\nThis is roomVisHash in handleRoomRegRequest ');
+             IMUtil.dPrint(roomVisHash);
+             IMUtil.dPrint('\n\n');
+             
+             //already have a friend in this group.
+             if (roomVisHash in visRoomIDToFriendMap)
+             {
+                 var friendToProcMsg = visRoomIDToFriendMap[roomVisHash];
+                 friendToProcMsg.processRegReqMsg(msg);
+             }
+             else
+                 wrappedTryAddFriend(sender,msg);
+         }
          
+         //actually set the handler for registration requests that
+         //come from a room.
+         roomRequestHandler = std.core.bind(handleRoomRegRequest,this) <<
+             [{'imRegRequest'::},{'room':true:}, {'mID'::}];
      };
 
      AppGui.prototype.kill = function ()
@@ -551,14 +648,18 @@ system.require('hawthorneApps/im/group.em');
              requestHandler = null;
          }
 
-
+         if (roomRequestHandler !== null)
+         {
+             roomRequestHandler.clear();
+             roomRequestHandler = null;
+         }
+         
          for (var s in imIDToFriendMap)
              imIDToFriendMap[s].kill();
 
          imIDToFriendMap   = {};
          visIDToFriendMap  = {};
          groupIDToGroupMap = {};
-
      };
 
 
@@ -589,22 +690,31 @@ system.require('hawthorneApps/im/group.em');
      };
      
      /**
-      Will remove this function sooner or later. Right now, I'm just using it for testing.
+      Will remove this function sooner or later. Right now, I'm just
+      using it for testing.
       */
      AppGui.prototype.debugBroadcast = function(toBroadcast)
      {
          for (var s in imIDToFriendMap)
              imIDToFriendMap[s].msgToFriend(toBroadcast);
      };
-     
-     AppGui.prototype.getStatusPresenting = function()
-     {
-         return 'Status Presenting';
-     };
 
-     AppGui.prototype.getProfilePresenting = function()
+     /**
+      Will remove this function sooner or later.  Right now, it just
+      walks through your list of friends and tries to get them to all
+      join the same chat room.
+      */
+     AppGui.prototype.debugCreateRoomAll = function()
      {
-         return 'Profile Presenting';
+         //collect all friends
+         var allFriends = [];
+         for (var s in imIDToFriendMap)
+             allFriends.push(imIDToFriendMap[s]);
+
+         var room = new Room('debugRoom', allFriends,
+                             this, IMUtil.getUniqueInt());
+
+         return room;
      };
 
      AppGui.prototype.display = function()
