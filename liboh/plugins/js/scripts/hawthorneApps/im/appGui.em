@@ -46,35 +46,58 @@ system.require('hawthorneApps/im/room.em');
                  return (entry[0] === OUTSTANDING_REQ_FRIENDSHIP_EVENT);
              }
          };
-     
+
+
+
 
      /**
       @param {visible} vis - potential friend we're connecting to.
       
       @param {imRegRequest message object} reqMsg - @see friend.em
       (especially message format sent out by beginRegistration.)
-
+      
       Takes in a potential friend and the request message (should be
       for a room request) that the friend sent in and returns a code 
       for this message unique to the sender/room pair.
       */
      function hashRoomVis(vis, reqMsg)
      {
+         //lkjs;
          var returner = vis.toString() + '-----';
-         returner += reqMsg.mID.toString();
+         if (reqMsg.roomType == Friend.RoomType.Peer)
+         {
+             IMUtil.dPrint('\n\nSuspicious behavior, room should not be true for peer.');
+             throw new Error('\n\nWrong roomType\n\n');
+         }
+         else if (reqMsg.roomType == Friend.RoomType.RoomReceiver)
+         {
+             //Other side is reciever.  I am coordinator.
+             returner += reqMsg.friendID.toString() + '__roomRec';
+         }
+         else if (reqMsg.roomType == Friend.RoomType.RoomCoordinator)
+         {
+             //Other side is coordinator.  I am receiver.
+             returner += reqMsg.mID.toString() + '__roomCoor';
+         }
+         else
+         {
+             IMUtil.dPrint('\n\nSuspicious behavior in hash.  Got a type I was not expecting: ');
+             IMUtil.dPrint(reqMsg.roomType);
+             IMUtil.dPrint('\n\n');
+             throw new Error('\n\nWrong roomType\n\n');
+         }
+         
          return returner;
      }
-
      
      var proxHandler         = null;
      var requestHandler      = null;
-     var roomRequestHandler  = null;
-
+     var roomRequestHandlerCoordinator = null;
+     var roomRequestHandlerReceiver  = null;
+     
      var WARN_EVENT          = 'WARN_EVENT';
      var DISPLAY_EVENT       = 'DISPLAY_EVENT';
      var TRY_ADD_EVENT       = 'TRY_ADD_EVENT';
-     
-     
 
      /**
       @param {visible} potentialFriend
@@ -91,26 +114,21 @@ system.require('hawthorneApps/im/room.em');
       */
      function tryAddFriend(potentialFriend,reqMsg)
      {
-         var addingRoomFriend = false;
+         var roomType = Friend.RoomType.Peer;
          if (reqMsg !== null)
-             addingRoomFriend = reqMsg.room;
+             roomType = reqMsg.roomType;
 
-         IMUtil.dPrint('\n\nIn tryAddFriend.  This is addingRoomFriend: ');
-         IMUtil.dPrint(addingRoomFriend);
-         IMUtil.dPrint('\n\n');
-
-         
          //don't try to add yourself as a friend
          if (potentialFriend.toString() == system.self.toString())
              return;
 
          //don't add if already have a friend.
-         if ((!addingRoomFriend) &&
+         if ((roomType == Friend.RoomType.Peer) &&
              (potentialFriend.toString() in visIDToFriendMap))
          {
              return;
          }
-         else if ((addingRoomFriend) &&
+         else if ((roomType != Friend.RoomType.Peer) &&
                   (hashRoomVis(potentialFriend,reqMsg) in visRoomIDToFriendMap))
          {
              return;
@@ -243,20 +261,24 @@ system.require('hawthorneApps/im/room.em');
      function completeAddFriend(newFriendVis,reqMsg,
                                 newFriendName,newFriendGroupID)
      {
-         var addingRoomFriend = false;
+         var roomType = Friend.RoomType.Peer;
          if (reqMsg !== null)
-             addingRoomFriend = reqMsg.room;
+             roomType = reqMsg.roomType;
 
+         var friendID = null;
+         if (reqMsg !== null)
+             friendID = reqMsg.mID;
+         
 
          //check if already added friend ...can occur if other side
          //sends you multiple requests, and you only confirm the
          //first.
-         if ((!addingRoomFriend) &&
+         if ((roomType == Friend.RoomType.Peer) &&
              (newFriendVis.toString() in visIDToFriendMap))
          {
              return;        
          }
-         else if ((addingRoomFriend) &&
+         else if ((roomType != Friend.RoomType.Peer) &&
                   (hashRoomVis(newFriendVis,reqMsg) in visRoomIDToFriendMap))
          {
              return;
@@ -273,14 +295,21 @@ system.require('hawthorneApps/im/room.em');
                            'Aborting friend add.\n\n');
              return;
          }
-         
+
+         var mRoomType = Friend.RoomType.Peer;
+         if (roomType == Friend.RoomType.RoomCoordinator)
+             mRoomType= Friend.RoomType.RoomReceiver;
+         else if (roomType == Friend.RoomType.RoomReceiver)
+             mRoomType= Friend.RoomType.RoomCoordinator;
          //create new friend object
          var friendToAdd =
              new Friend(IMUtil.htmlEscape(newFriendName), newFriendVis,
-                        this, IMUtil.getUniqueInt());
+                        this, IMUtil.getUniqueInt(), undefined,mRoomType,
+                        friendID);
 
+         
          groupIDToGroupMap[newFriendGroupID].addMember(friendToAdd);
-         if (!addingRoomFriend)
+         if (roomType== Friend.RoomType.Peer)
          {
              visIDToFriendMap[newFriendVis.toString()] = friendToAdd;                 
          }
@@ -296,8 +325,9 @@ system.require('hawthorneApps/im/room.em');
          //friendship first: we reply saying that we'd be happy to be
          //friends.
          if (reqMsg !== null)
-             friendToAdd.processRegReqMsg (reqMsg);
-         
+             friendToAdd.processRegReqMsg (reqMsg);             
+
+
          //re-display entire gui when add friend.
          this.display();
      }
@@ -568,7 +598,6 @@ system.require('hawthorneApps/im/room.em');
              if (visAdded.toString() == system.self.toString())
                  return;
              
-             IMUtil.dPrint('\n\nTrying to add new friend through prox.\n\n');
              wrappedTryAddFriend(visAdded,null);
          }
 
@@ -601,40 +630,85 @@ system.require('hawthorneApps/im/room.em');
          //actually set the handler for registration requests that do
          //not come from a room.
          requestHandler = std.core.bind(handleRegRequest,this) <<
-             [{'imRegRequest'::},{'room':false:},{'mID'::}];
-
+             [{'imRegRequest'::},{'roomType':Friend.RoomType.Peer:},{'mID'::}];
 
 
          function handleRoomRegRequest(msg,sender)
          {
-             IMUtil.dPrint('\n\nGot into handleRoomRegRequest\n\n');
-             
              if (typeof(msg.mID) != 'number')
                  return;                     
 
+             IMUtil.dPrint('\n\nIn HandleRoomRegRequest.  This is roomType: ');
+             IMUtil.dPrint(msg.roomType);
+             IMUtil.dPrint('\n\n');
 
+             IMUtil.dPrint('\n\nThis is type of coordinator: ');
+             IMUtil.dPrint(Friend.RoomType.RoomCoordinator);
+             IMUtil.dPrint('\n\nThis is type of receiver: ');
+             IMUtil.dPrint(Friend.RoomType.RoomReceiver);
+             IMUtil.dPrint('\n\n');
+
+             
              var roomVisHash = hashRoomVis(sender,msg);
 
-             IMUtil.dPrint('\nThis is roomVisHash in handleRoomRegRequest ');
-             IMUtil.dPrint(roomVisHash);
-             IMUtil.dPrint('\n\n');
-             
-             //already have a friend in this group.
+             //already have a friend in this room.
              if (roomVisHash in visRoomIDToFriendMap)
              {
                  var friendToProcMsg = visRoomIDToFriendMap[roomVisHash];
                  friendToProcMsg.processRegReqMsg(msg);
              }
              else
+             {
+                 if (msg.roomType == Friend.RoomType.Receiver)
+                 {
+                     IMUtil.dPrint('\n\nI should never have gotten here.\n');
+                     IMUtil.dPrint('This is hash: \n');
+                     IMUtil.dPrint(roomVisHash);
+                     IMUtil.dPrint('\n\nAnd these are others: \n');
+                     for (var s in visRoomIDToFriendMap)
+                         IMUtil.dPrint(s + '\n');
+                 }
+                  
                  wrappedTryAddFriend(sender,msg);
+             }
          }
          
          //actually set the handler for registration requests that
          //come from a room.
-         roomRequestHandler = std.core.bind(handleRoomRegRequest,this) <<
-             [{'imRegRequest'::},{'room':true:}, {'mID'::}];
+         roomRequestHandlerCoordinator = std.core.bind(handleRoomRegRequest,this) <<
+             [{'imRegRequest'::},
+              {'roomType':Friend.RoomType.RoomCoordinator:},
+              {'mID'::}];
+
+         roomRequestHandlerReceiver = std.core.bind(handleRoomRegRequest,this) <<
+             [{'imRegRequest'::},
+              {'roomType':Friend.RoomType.RoomReceiver:},
+              {'mID'::}];
+         
      };
 
+     /**
+      @param {Friend} newFriend
+
+      Adds newFriend to visRoomIDToFriendMap.
+      */
+     AppGui.prototype.addRoomFriend = function(newFriend)
+     {
+         //constructs dummy message to be consistent with
+         //@see hashRoomVis.
+         var dummyMsg = {
+             friendID:newFriend.imID,
+             roomType: Friend.RoomType.RoomReceiver
+         };
+
+         
+         //lkjs;
+         var index = hashRoomVis(newFriend.vis,dummyMsg);
+         visRoomIDToFriendMap[index] = newFriend;
+     };
+     
+
+     
      AppGui.prototype.kill = function ()
      {
          if (proxHandler !== null)
@@ -648,11 +722,18 @@ system.require('hawthorneApps/im/room.em');
              requestHandler = null;
          }
 
-         if (roomRequestHandler !== null)
+         if (roomRequestHandlerCoordinator !== null)
          {
-             roomRequestHandler.clear();
-             roomRequestHandler = null;
+             roomRequestHandlerCoordinator.clear();
+             roomRequestHandlerCoordinator = null;
          }
+         
+         if (roomRequestHandlerReceiver !== null)
+         {
+             roomRequestHandlerReceiver.clear();
+             roomRequestHandlerReceiver = null;
+         }
+         
          
          for (var s in imIDToFriendMap)
              imIDToFriendMap[s].kill();

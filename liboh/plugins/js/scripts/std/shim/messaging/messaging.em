@@ -329,6 +329,8 @@ if (typeof(std.messaging) != 'undefined')
         {
             if (hasCanceled)
                 throw new Error('Error.  Cannot clear a message stream that was already cancelled.');
+
+            // system.__debugPrint('\nIn ClearObject about to cancel.\n\n');
             cancelOpenHandler(key);
         };
         
@@ -350,8 +352,10 @@ if (typeof(std.messaging) != 'undefined')
     {
         var key = generateKey(recString,senderString,seqNo,streamID);
         if (! (key in openHandlers))
-            throw new Error('Error in successResponse.  Do not have key ' + key + ' in openHandlers.');
-
+        {
+            // system.__debugPrint('\nIn cancelOpenHandler about to cancel.\n\n');
+            throw new Error('Error in cancelOpenHandler.  Do not have key ' + key + ' in openHandlers.');
+        }
         
         //clear success handler
         openHandlers[key][0].clear();
@@ -416,12 +420,23 @@ if (typeof(std.messaging) != 'undefined')
         
         var wrapOnResp = function(msgRec,sndr)
         {
+            // system.__debugPrint('\nIn wrapOnResp.  This is key: ');
+            var key = generateKey(recString,senderString,seqNo,streamID);
+            // system.__debugPrint(key.toString());
+            // system.__debugPrint('\n\n');
+            
+            
             cancelOpenHandler(recString,senderString,seqNo,streamID);
             onResp(msgRec,sndr);
         };
 
         var wrapOnNoResp = function()
         {
+            // system.__debugPrint('\nIn wrapOnNoResp');
+            var key = generateKey(recString,senderString,seqNo,streamID);
+            // system.__debugPrint(key.toString());
+            // system.__debugPrint('\n\n');
+            
             cancelOpenHandler(recString,senderString,seqNo,streamID);
             onNoResp();
         };
