@@ -23,22 +23,32 @@ system.require('hawthorneApps/im/convGUI.em');
      friend.
 
      @param{ApplicationGUI} appGui - Gui object for application.  @see
-     appGui.em.  If this is a room friend, then appGui is a Room
-     object.  @see room.em.  Room objects implement all the same
-     behaviors as AppGui objects.
+     appGui.em.  If this is a room coordinator friend, then appGui is
+     a Room object.  @see room.em.  Room objects implement all the
+     same behaviors as AppGui objects.
 
      @param{unique int} imID - Each friend has a unique id associated
      with it.
 
-     @param {ConvGUI} convGUI (optional) - This value may be
+     @param {ConvGUI,undefined} convGUI - This value may be
      undefined.  In these instances, create own gui.  @see convGUI.em.
      Note a Room object (@see room.em) may be passed in as well.  Room
      objects implement all the same behaviors as ConvGUI objects.
 
+     @param {int} roomFriendType - @see Friend.RoomType.  If
+     communicating with another directly (ie, not in a chat room, then
+     has type Peer).  If you control the room, then you are a
+     RoomCoordinator.  If you are subscribed to the room, then you are
+     a RoomReceiver.
+     
      Each friend sends imID to friend and sets up handlers listening
      for those imIDs
+
+     @param {int/null} friendID - If not null, then set to the id that
+     the friend has reported for this connection.  (ie, the mID field
+     of a message received from other connection.
      */
-    Friend = function(name, vis, appGui, imID, convGUI,isRoomFriend)
+    Friend = function(name, vis, appGui, imID, convGUI,roomFriendType,friendID)
     {
         //how the friend name will be displayed on the friend's list.
         this.name       = IMUtil.htmlEscape(name);
@@ -50,8 +60,14 @@ system.require('hawthorneApps/im/convGUI.em');
         if (typeof(convGUI) != 'undefined')
             this.convGUI = convGUI;
 
-        this.isRoomFriend = (isRoomFriend === true);
+        //this is true if 
+        this.roomFriendType = roomFriendType;
 
+        if (typeof(roomFriendType) == 'undefined')
+        {
+            throw new Error('\n\nGot an undefined room type in Friend.\n\n');
+        }
+        
         //friendID: note maybe could just use the visible id.
         this.imID       = imID;
         
@@ -64,7 +80,7 @@ system.require('hawthorneApps/im/convGUI.em');
         //every message that we send to friend should have their
         //friendID expliclty included (helps distinguish direct
         //messages from room messages).
-        this.friendID = null;
+        this.friendID = friendID;
 
         this.topicsDiscussed = [];
 
@@ -76,6 +92,12 @@ system.require('hawthorneApps/im/convGUI.em');
         this.setupMessageListeners();
     };
 
+    //
+    Friend.RoomType = {
+            Peer: 1,
+            RoomCoordinator: 2,
+            RoomReceiver: 3
+    };
     
     /**
      Send a message to friend that my profile has changed.  Listeners
@@ -125,6 +147,8 @@ system.require('hawthorneApps/im/convGUI.em');
     Friend.prototype.processRegReqMsg = function (msg)
     {
         this.friendID = msg.mID;
+
+        //lkjs;
         var replyPart = {
             'status':  this.statusToFriend,
             'profile': this.profileToFriend,
@@ -212,8 +236,9 @@ system.require('hawthorneApps/im/convGUI.em');
         var wrappedRegResponse = std.core.bind(
             regResponse,this);
 
-        
-        { 'imRegRequest': 1, 'mID': this.imID, 'room': this.isRoomFriend}
+
+        { 'imRegRequest': 1, 'mID': this.imID,
+          'roomType': this.roomFriendType, 'friendID': this.friendID}
             >> this.vis >>
             [ wrappedRegResponse, REGISTRATION_TIMEOUT, wrappedNoRegResponse];
     };
@@ -341,11 +366,6 @@ system.require('hawthorneApps/im/convGUI.em');
      */
     function handleMessage(msg,sender)
     {
-        IMUtil.dPrint('\n\nReceived a message: ');
-        IMUtil.dPrint(msg.imMsg);
-        IMUtil.dPrint('\n');
-        IMUtil.dPrint('This is isRoomFriend: ' + this.isRoomFriend.toString());
-        IMUtil.dPrint('\n\n');
 
         if (typeof(msg.imMsg) != 'string')
             return;
@@ -400,11 +420,11 @@ system.require('hawthorneApps/im/convGUI.em');
      */
     Friend.prototype.setupMessageListeners = function()
     {
-        IMUtil.dPrint('\n\nSetting up message listeners\n\n');
         //handler for receiving conversation messages
         var wrappedHandleMessage = std.core.bind(
             handleMessage,this);
 
+        
         this.msgHandler = wrappedHandleMessage <<
             [{'imMsg'::},{'friendID':this.imID:}] << this.vis;
 
