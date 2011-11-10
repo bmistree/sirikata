@@ -379,7 +379,7 @@ system.require('hawthorneApps/im/convGUI.em');
             this.convGUI = new ConvGUI(this.name,this);
             
         //output to the conversation gui.
-        this.convGUI.writeFriend(IMUtil.htmlEscape(msg.imMsg));
+        this.convGUI.writeFriend(IMUtil.htmlEscape(msg.imMsg),this);
 
         //send ack back to other side.
         msg.makeReply({'imMsgAck': 1}) >> [];

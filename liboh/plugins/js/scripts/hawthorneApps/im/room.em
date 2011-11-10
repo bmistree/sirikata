@@ -103,10 +103,13 @@ system.require('hawthorneApps/im/friend.em');
       all friends.  For all friends that are connected, forward the
       message.
       */
-     Room.prototype.writeFriend = function(toWrite)
+     Room.prototype.writeFriend = function(toWrite,friendMsgFrom)
      {
          for (var s in this.friendArray)
          {
+             if (this.friendArray[s] == friendMsgFrom)
+                 continue;
+             
              if (this.friendArray[s].canSend(toWrite))
                  this.friendArray[s].msgToFriend(toWrite);
 
