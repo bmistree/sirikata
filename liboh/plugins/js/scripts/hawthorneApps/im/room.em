@@ -48,7 +48,6 @@ system.require('hawthorneApps/im/friend.em');
          this.rmID   = rmID;
      };
 
-
      
      //appGui functionality used by friend
 
@@ -106,17 +105,11 @@ system.require('hawthorneApps/im/friend.em');
       */
      Room.prototype.writeFriend = function(toWrite)
      {
-         IMUtil.dPrint('\n\nIn room, trying to write message: ');
-         IMUtil.dPrint(toWrite);
-         IMUtil.dPrint('\n\n');
          for (var s in this.friendArray)
          {
-             IMUtil.dPrint('\n\nTrying to write once\n');
              if (this.friendArray[s].canSend(toWrite))
-             {
                  this.friendArray[s].msgToFriend(toWrite);
-                 IMUtil.dPrint('\nWritten\n');
-             }
+
          }
      };
 

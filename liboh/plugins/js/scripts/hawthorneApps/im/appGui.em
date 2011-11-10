@@ -66,7 +66,6 @@ system.require('hawthorneApps/im/room.em');
          var returner = vis.toString() + '-----';
          if (reqMsg.roomType == Friend.RoomType.Peer)
          {
-             IMUtil.dPrint('\n\nSuspicious behavior, room should not be true for peer.');
              throw new Error('\n\nWrong roomType\n\n');
          }
          else if (reqMsg.roomType == Friend.RoomType.RoomReceiver)
@@ -638,16 +637,6 @@ system.require('hawthorneApps/im/room.em');
              if (typeof(msg.mID) != 'number')
                  return;                     
 
-             IMUtil.dPrint('\n\nIn HandleRoomRegRequest.  This is roomType: ');
-             IMUtil.dPrint(msg.roomType);
-             IMUtil.dPrint('\n\n');
-
-             IMUtil.dPrint('\n\nThis is type of coordinator: ');
-             IMUtil.dPrint(Friend.RoomType.RoomCoordinator);
-             IMUtil.dPrint('\n\nThis is type of receiver: ');
-             IMUtil.dPrint(Friend.RoomType.RoomReceiver);
-             IMUtil.dPrint('\n\n');
-
              
              var roomVisHash = hashRoomVis(sender,msg);
 
@@ -667,6 +656,7 @@ system.require('hawthorneApps/im/room.em');
                      IMUtil.dPrint('\n\nAnd these are others: \n');
                      for (var s in visRoomIDToFriendMap)
                          IMUtil.dPrint(s + '\n');
+                     throw new Error('\n\nWrong roomType in handleRoomRegRequest\n\n');
                  }
                   
                  wrappedTryAddFriend(sender,msg);
