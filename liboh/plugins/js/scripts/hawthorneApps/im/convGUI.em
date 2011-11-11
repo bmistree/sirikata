@@ -64,14 +64,14 @@ system.require('hawthorneApps/im/imUtil.em');
      /**
       Called when friend enters text into tab that needs to be displayed.
       */
-     ConvGUI.prototype.writeFriend = function(toWrite)
+     ConvGUI.prototype.writeFriend = function(toWrite,friend,senderName)
      {
          if (!this.guiInitialized)
          {
-             this.pendingEvents.push([WRITE_FRIEND_EVENT,toWrite]);
+             this.pendingEvents.push([WRITE_FRIEND_EVENT,toWrite,senderName]);
              return;
          }
-         internalWriteFriend(this,toWrite);
+         internalWriteFriend(this,toWrite,senderName);
      };
 
 
@@ -112,7 +112,7 @@ system.require('hawthorneApps/im/imUtil.em');
              if(this.pendingEvents[s][0] == WRITE_ME_EVENT)
                  internalWriteMe(this,this.pendingEvents[s][1]);
              else if (this.pendingEvents[s][0] == WRITE_FRIEND_EVENT)
-                 internalWriteFriend(this,this.pendingEvents[s][1]);
+                 internalWriteFriend(this,this.pendingEvents[s][1],this.pendingEvents[s][2]);
              else if (this.pendingEvents[s][0] == CHANGE_FRIEND_NAME_EVENT)
                  internalChangeFriendName(this,this.pendingEvents[s][1]);
              else
@@ -154,9 +154,12 @@ system.require('hawthorneApps/im/imUtil.em');
      /**
       @param {string-untainted} message
       */
-     function internalWriteFriend(convGUI,message)
+     function internalWriteFriend(convGUI,message,sender)
      {
-         convGUI.guiMod.call(constructWriteFriendFuncName(convGUI),message);
+         if (sender == null)
+             sender = convGUI.friendName;
+
+         convGUI.guiMod.call(constructWriteFriendFuncName(convGUI),message,sender);
      }
 
      /**
@@ -234,9 +237,9 @@ system.require('hawthorneApps/im/imUtil.em');
          var melvilleWindow = new sirikata.ui.window(
             '#' + getMelvilleDialogID(),
             {
-	        autoOpen: false,
-	        height: 'auto',
-	        width: 300,
+                autoOpen: false,
+                height: 'auto',
+                width: 300,
                 height: 400,
                 position: 'right'
             }
@@ -283,10 +286,10 @@ system.require('hawthorneApps/im/imUtil.em');
 
          //internal to gui display
          returner += constructWriteFriendFuncName(convGUI) + '=';
-         returner += @ function(msg)
+         returner += @ function(msg,sender)
          {
              var formattedMsg = "<font color=FRIEND_COLOR> "
-                 + FRIEND_NAME + "</font>: " + msg;
+                 + sender + "</font>: " + msg;
              
              writeToLog(formattedMsg);
          };

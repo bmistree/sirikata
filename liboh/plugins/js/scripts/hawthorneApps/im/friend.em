@@ -60,7 +60,7 @@ system.require('hawthorneApps/im/convGUI.em');
         if (typeof(convGUI) != 'undefined')
             this.convGUI = convGUI;
 
-        //this is true if 
+
         this.roomFriendType = roomFriendType;
 
         if (typeof(roomFriendType) == 'undefined')
@@ -295,11 +295,23 @@ system.require('hawthorneApps/im/convGUI.em');
      @param {String} msgToSend: tainted.  Need to de-taint before
      sending.
 
+     @param {String} msgFrom : stringified version of visible id.
+     Required if friedn is a room coordinator.  Optional otherwise.
+     
      Regardless of the state of the connection between self and
      friend, tries to set up
      */
-    Friend.prototype.msgToFriend = function(msgToSend)
+    Friend.prototype.msgToFriend = function(msgToSend, msgFrom)
     {
+        if (this.roomType == Friend.RoomType.RoomCoordinator)
+        {
+            if (typeof(msgFrom) != 'string')
+            {
+                throw new Error ('\n\nError in msgToFriend. ' +
+                                'Should have specified msgFrom as string.');
+            }
+        }
+        
         if ((this.connStatus == OTHER_SIDE_NON_RESPONSIVE) ||
             (this.connStatus == REGISTRATION))
         {
@@ -327,7 +339,7 @@ system.require('hawthorneApps/im/convGUI.em');
         
         //send the message to the other side & output it to
         //conversation gui
-        {'imMsg': msgToSend, 'friendID': this.friendID} >>
+        {'imMsg': msgToSend, 'friendID': this.friendID, 'sender': msgFrom} >>
             this.vis >>
             [ function(){},MESSAGE_TIMEOUT,wrappedMsgUnacked];
 
@@ -358,15 +370,27 @@ system.require('hawthorneApps/im/convGUI.em');
         }
     };
 
-
-
     /**
      Called when receive a message to display from friend from @see
      Friend.prototype.setupMessageListeners.
+
+     Note that, depending if 
      */
     function handleMessage(msg,sender)
     {
+        var senderName = null;
+        if (this.roomFriendType  == Friend.RoomType.RoomReceiver)
+        {
+            //sender should be string-ified version of 
+            if ('sender' in msg)
+            {
+                senderName =this.appGui.getFriendName(msg.sender);
+                if (senderName === null)
+                    senderName = msg.sender;
+            }
+        }
 
+        
         if (typeof(msg.imMsg) != 'string')
             return;
             
@@ -379,7 +403,7 @@ system.require('hawthorneApps/im/convGUI.em');
             this.convGUI = new ConvGUI(this.name,this);
             
         //output to the conversation gui.
-        this.convGUI.writeFriend(IMUtil.htmlEscape(msg.imMsg),this);
+        this.convGUI.writeFriend(IMUtil.htmlEscape(msg.imMsg),this,senderName);
 
         //send ack back to other side.
         msg.makeReply({'imMsgAck': 1}) >> [];
@@ -412,8 +436,6 @@ system.require('hawthorneApps/im/convGUI.em');
         this.appGui.display(this.imID);
     }
 
-
-    
     /**
      Sets up listeners for profile changes, status changes, and
      regular conversation messages.
@@ -423,10 +445,10 @@ system.require('hawthorneApps/im/convGUI.em');
         //handler for receiving conversation messages
         var wrappedHandleMessage = std.core.bind(
             handleMessage,this);
-
         
         this.msgHandler = wrappedHandleMessage <<
             [{'imMsg'::},{'friendID':this.imID:}] << this.vis;
+        
 
         //handler for status updates
         var wrappedHandleStatusMessage = std.core.bind(
@@ -441,9 +463,8 @@ system.require('hawthorneApps/im/convGUI.em');
         
         this.profUpdateHandler = wrappedHandleProfMessage <<
             [{'imProf'::},{'friendID':this.imID:}] << this.vis;
+            
     };
-
-    
     
 })();
 

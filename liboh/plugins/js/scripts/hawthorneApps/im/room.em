@@ -39,9 +39,7 @@ system.require('hawthorneApps/im/friend.em');
              this.friendArray.push(newFriend);
 
              //note: may need to change
-
              appGui.addRoomFriend(newFriend);
-
          }
          
          this.appGui = appGui;
@@ -111,8 +109,10 @@ system.require('hawthorneApps/im/friend.em');
                  continue;
              
              if (this.friendArray[s].canSend(toWrite))
-                 this.friendArray[s].msgToFriend(toWrite);
-
+             {
+                 this.friendArray[s].msgToFriend(
+                     toWrite,friendMsgFrom.vis.toString());
+             }
          }
      };
 

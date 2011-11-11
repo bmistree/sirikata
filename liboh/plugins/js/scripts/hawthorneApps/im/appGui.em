@@ -7,6 +7,7 @@ system.require('hawthorneApps/im/room.em');
 (function()
  {
      var IM_APP_NAME = 'MelvilleIM';
+     //keys are string-ified versions of visible ids
      var visIDToFriendMap  = {};
      var visRoomIDToFriendMap = {};
      var imIDToFriendMap   = {};
@@ -47,9 +48,6 @@ system.require('hawthorneApps/im/room.em');
              }
          };
 
-
-
-
      /**
       @param {visible} vis - potential friend we're connecting to.
       
@@ -62,7 +60,6 @@ system.require('hawthorneApps/im/room.em');
       */
      function hashRoomVis(vis, reqMsg)
      {
-         //lkjs;
          var returner = vis.toString() + '-----';
          if (reqMsg.roomType == Friend.RoomType.Peer)
          {
@@ -696,7 +693,22 @@ system.require('hawthorneApps/im/room.em');
          var index = hashRoomVis(newFriend.vis,dummyMsg);
          visRoomIDToFriendMap[index] = newFriend;
      };
+
      
+     /**
+      @param {string} friendVisID stringified version of a visible's
+      id.
+      */
+     AppGui.prototype.getFriendName = function(friendVisID)
+     {
+         var returner = null;
+
+         if (friendVisID in visIDToFriendMap)
+             returner = visIDToFriendMap[friendVisID].name;
+
+         
+         return returner;
+     };
 
      
      AppGui.prototype.kill = function ()
