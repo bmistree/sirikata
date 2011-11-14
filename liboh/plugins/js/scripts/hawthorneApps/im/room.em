@@ -51,12 +51,25 @@ system.require('hawthorneApps/im/friend.em');
 
      /**
       called when a friend has changed status, initially created
-      itself,changed its connection status (either open or closed),
-      will need to change this so that sends messages to friends to
-      filter friends that are no longer participating.
+      itself,changed its connection status (either open or closed).
+      
+      Sends a chatList message to all friends that are still enabled.
       */
      Room.prototype.display = function(imID)
      {
+         var chatList = [];
+         for (var s in this.friendArray)
+         {
+             if (this.friendArray[s].canSend())
+                 chatList.push(this.friendArray[s].vis.toString());
+         }
+
+         for (var s in this.friendArray)
+         {
+             if (this.friendArray[s].canSend())
+                 this.friendArray[s].sendChatList(chatList);
+         }
+         
          IMUtil.dPrint('\nGot a request to display in Room.em\n');
      };
 
@@ -108,7 +121,7 @@ system.require('hawthorneApps/im/friend.em');
              if (this.friendArray[s] == friendMsgFrom)
                  continue;
              
-             if (this.friendArray[s].canSend(toWrite))
+             if (this.friendArray[s].canSend())
              {
                  this.friendArray[s].msgToFriend(
                      toWrite,friendMsgFrom.vis.toString());

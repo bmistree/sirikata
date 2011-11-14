@@ -7,7 +7,7 @@ system.require('hawthorneApps/im/imUtil.em');
      var WRITE_FRIEND_EVENT       =       'WRITE_FRIEND_EVENT';
      var WARN_EVENT               =               'WARN_EVENT';
      var CHANGE_FRIEND_NAME_EVENT = 'CHANGE_FRIEND_NAME_EVENT';
-     
+     var NAME_LIST_EVENT          =   'CHANGE_NAME_LIST_EVENT';
      
      function guiName(friendName)
      {
@@ -34,7 +34,19 @@ system.require('hawthorneApps/im/imUtil.em');
          );
      };
 
-         
+
+     /**
+      */
+     ConvGUI.prototype.setChatParticipants = function(nameList)
+     {
+         if (! this.guiInitialized)
+         {
+             this.pendingEvents.push([NAME_LIST_EVENT , nameList]);
+             return;
+         }
+         internalSetChatParticipants(this,nameList);
+     };
+     
      /**
       @param {string -- untainted} warnMsg
       */
@@ -142,6 +154,11 @@ system.require('hawthorneApps/im/imUtil.em');
          return 'melville_conv_gui_change_name__' + convGUI.uiID.toString();
      }
 
+     function constructSetChatParticipantsName(convGUI)
+     {
+         return 'melville_conv_gui_chat_participants___' + convGUI.uiID.toString();
+     }
+     
      
      /**
       @param {string-untainted} toWarnWith
@@ -151,6 +168,14 @@ system.require('hawthorneApps/im/imUtil.em');
          convGUI.guiMod.call(constructWarnFuncName(convGUI),toWarnWith);
      }
 
+     
+     function internalSetChatParticipants(convGUI,nameList)
+     {
+         convGUI.guiMod.call(constructSetChatParticipantsName(convGUI),nameList);
+     }
+
+     
+     
      /**
       @param {string-untainted} message
       */
@@ -199,7 +224,10 @@ system.require('hawthorneApps/im/imUtil.em');
          //text area for melville input id
          returner += 'var getMelvilleTareaID = function(){ return ';
          returner += '"melvilletraea__'+convGUI.uiID.toString() + '";};';
-         
+
+         returner += 'var getMelvilleChatParticipantsID = function(){ return ';
+         returner += '"melvilletchat_parts__'+convGUI.uiID.toString() + '";};';
+     
          //chat button id
          returner += 'var getMelvilleChatButtonID = function(){ return ';
          returner += '"melvilleChatButton__' + convGUI.uiID.toString() + '";};';
@@ -222,13 +250,20 @@ system.require('hawthorneApps/im/imUtil.em');
 
 
          //actual window code
-         $('<div>' + 
+         $('<div>' +
+
+     '<table><tr><td>' +
               '<div id=' + getMelvilleHistoryID() + ' style="height:120px;width:250px;font:16px/26px Georgia, Garamond, Serif;overflow:scroll;">' +
               '</div>' + //end history
           
               '<input value="" id=' + getMelvilleTareaID() + ' style="width:250px;">' +
               '</input>' +
-
+     
+     '</td><td>' +
+         '<div id=' +getMelvilleChatParticipantsID() + '>' +
+         '</div>' +
+         '</td></tr></table>' +
+     
               '<button id=' + getMelvilleChatButtonID() + '>Enter</button>' +
           
           '</div>' //end div at top.
@@ -284,6 +319,20 @@ system.require('hawthorneApps/im/imUtil.em');
          };
          @;
 
+     returner += constructSetChatParticipantsName(convGUI) + '=';
+     returner += @function(nameList)
+     {
+         var strToDisplay = '<b> Others in room</b><br/>';
+         for (var s in nameList)
+         {
+             strToDisplay += nameList[s] + ' <br/>';
+         }
+
+         $('#' + getMelvilleChatParticipantsID()).html(strToDisplay);
+     };
+     @
+
+     
          //internal to gui display
          returner += constructWriteFriendFuncName(convGUI) + '=';
          returner += @ function(msg,sender)

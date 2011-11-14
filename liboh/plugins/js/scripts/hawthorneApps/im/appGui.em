@@ -688,8 +688,6 @@ system.require('hawthorneApps/im/room.em');
              roomType: Friend.RoomType.RoomReceiver
          };
 
-         
-         //lkjs;
          var index = hashRoomVis(newFriend.vis,dummyMsg);
          visRoomIDToFriendMap[index] = newFriend;
      };

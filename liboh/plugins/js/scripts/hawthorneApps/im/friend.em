@@ -127,6 +127,8 @@ system.require('hawthorneApps/im/convGUI.em');
     };
 
 
+    
+
     /**
      @param {string - untainted} newName
      Changes friend's name to newName
@@ -282,7 +284,7 @@ system.require('hawthorneApps/im/convGUI.em');
         }
         else
         {
-            this.appGUI.warn('Some messages to ' + this.name +
+            this.appGui.warn('Some messages to ' + this.name +
                              ' may not have been delivered.');
         }
         this.status = OTHER_SIDE_NON_RESPONSIVE;
@@ -368,6 +370,13 @@ system.require('hawthorneApps/im/convGUI.em');
             this.profUpdateHandler.clear();
             this.profUpdateHandler = null;
         }
+
+        if (this.chatListHandler !== null)
+        {
+            this.chatListHandler.clear();
+            this.chatListHandler = null;
+        }
+        
     };
 
     /**
@@ -436,6 +445,81 @@ system.require('hawthorneApps/im/convGUI.em');
         this.appGui.display(this.imID);
     }
 
+
+    function handleChatListMessage(msg,sender)
+    {
+        if (this.roomFriendType != Friend.RoomType.RoomReceiver)
+        {
+            IMUtil.dPrint('\nError: got chat list message for a ' +
+                          'non-room receiver.');
+            return;
+        }
+
+        //set the chat participants to their known names:
+        for (var s in msg.imChatList)
+        {
+            var friendName = this.appGui.getFriendName(
+                msg.imChatList[s]);
+
+            if (friendName !== null)
+                msg.imChatList[s] = friendName;
+        }
+        
+        if (this.convGUI === null)
+            this.convGUI = new ConvGUI(this.name,this);
+        
+        this.convGUI.setChatParticipants(msg.imChatList);
+    }
+
+
+    /**
+     @param {array} chatList - Each element is the to-stringed version
+     of a visible's identifier.
+
+     Should only be called by a room coordinator and only when this
+     Friend is in a canSend state.
+     */
+    Friend.prototype.sendChatList = function (chatList)
+    {
+        if (this.roomFriendType != Friend.RoomType.RoomCoordinator)
+        {
+            IMUtil.dPrint('\n\nError in sendChatList.  Only room ' +
+                          'coordinators can send chat list messages.');
+            return;
+        }
+
+
+        if (!this.canSend())
+        {
+            IMUtil.dPrint('\nError in sendChatList.  Room coordinator ' +
+                          'was not in sendable state.');
+            return;
+        }
+
+        //replace my vis id with
+        var index = null;
+        for (var s in chatList)
+        {
+            if (chatList[s] == this.vis.toString())
+            {
+                index = s;
+                chatList[s] = 'me';
+                break;
+            }
+        }
+
+        
+        //craft and send the message.
+        var msgToSend = {
+            'imChatList': chatList
+        };
+
+        msgToSend >> this.vis >> [];
+
+        if (index != null)
+            chatList[index] = this.vis.toString();
+    };
+    
     /**
      Sets up listeners for profile changes, status changes, and
      regular conversation messages.
@@ -463,9 +547,21 @@ system.require('hawthorneApps/im/convGUI.em');
         
         this.profUpdateHandler = wrappedHandleProfMessage <<
             [{'imProf'::},{'friendID':this.imID:}] << this.vis;
+
+        //handler for listening for chat participant messages (if room receiver)
+        if (this.roomFriendType == Friend.RoomType.RoomReceiver)
+        {
+            var wrappedHandleChatListMessage = std.core.bind(
+                handleChatListMessage,this);
             
+            this.chatListHandler = wrappedHandleChatListMessage <<
+                [{'imChatList'::}] <<this.vis;
+        }
+        else
+        {
+            this.chatListHandler = null;
+        }
     };
     
 })();
-
 
