@@ -1,6 +1,7 @@
 
 system.require('hawthorneApps/im/imUtil.em');
 system.require('hawthorneApps/im/friend.em');
+//system.require('hawthorneApps/im/roomGui.em');
 
 (function()
  {
@@ -16,36 +17,68 @@ system.require('hawthorneApps/im/friend.em');
       @param {String-tainted} name - Self-reported name of room to
       create.
 
-      @param {array} friendArray - An array of friend objects that we
-      want to add to this group.  For each, we try to create a new
-      connection, requesting them to join our group.
-
       @param {AppGui} appGui
 
       @param {unique int} rmID - Room ID.  
       */
-     Room = function(name,friendArray,appGui,rmID)
+     Room = function(name,appGui,rmID)
      {
          this.name = name;
 
          this.friendArray = [];
-         for (var s in friendArray)
-         {
-             var newFriend = new Friend(
-                 friendArray[s].name,friendArray[s].vis,
-                 this,IMUtil.getUniqueInt(),this,
-                 Friend.RoomType.RoomCoordinator,null);
-             
-             this.friendArray.push(newFriend);
-
-             //note: may need to change
-             appGui.addRoomFriend(newFriend);
-         }
          
          this.appGui = appGui;
          this.rmID   = rmID;
      };
 
+     /**
+      @param {Friend} friendToAdd - Should not already exist in
+      room.  Prints warning if does.
+      */
+     Room.prototype.addFriend = function(friendToAdd)
+     {
+         for (var s in this.friendArray)
+         {
+             if (this.friendArray[s].imID == friendToAdd.imID)
+             {
+                 IMUtil.dPrint('\nAlready have a friend with this id '+
+                               'in the room.  Doing nothing.\n');
+                 return;
+             }
+         }
+         
+         var newFriend = new Friend(
+             friendToAdd.name,friendToAdd.vis,
+             this,IMUtil.getUniqueInt(),this,
+             Friend.RoomType.RoomCoordinator,null);
+
+         //actually add to array.
+         this.friendArray.push(newFriend);
+         //notify appGui of new friend.
+         this.appGui.addRoomFriend(newFriend);
+     };
+
+
+     /**
+      @param {Friend} friendToRemove - Should already exist in room.
+      After calling this, kills friend.
+      */
+     Room.prototype.removeFriend = function (friendToRemove)
+     {
+         for (var s in this.friendArray)
+         {
+             if (this.friendArray[s].imID == friendToRemove.imID)
+             {
+                 delete this.friendArray[s];
+                 removeFriend.kill();
+                 break;
+             }
+         }
+
+         //updates chat list.
+         this.display();
+     };
+     
      
      //appGui functionality used by friend
 
@@ -55,7 +88,7 @@ system.require('hawthorneApps/im/friend.em');
       
       Sends a chatList message to all friends that are still enabled.
       */
-     Room.prototype.display = function(imID)
+     Room.prototype.display = function()
      {
          var chatList = [];
          for (var s in this.friendArray)

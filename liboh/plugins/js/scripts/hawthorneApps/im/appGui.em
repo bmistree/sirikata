@@ -7,13 +7,7 @@ system.require('hawthorneApps/im/room.em');
 (function()
  {
      var IM_APP_NAME = 'MelvilleIM';
-     //keys are string-ified versions of visible ids
-     var visIDToFriendMap  = {};
-     var visRoomIDToFriendMap = {};
-     var imIDToFriendMap   = {};
-
-     var groupIDToGroupMap = {};
-
+     
      //a list of outstanding questions that have been asked of user.
      //Indices are unique integers.  Values are arrays.  First element
      //of array always lists request type.  Other elements of array are
@@ -120,12 +114,12 @@ system.require('hawthorneApps/im/room.em');
 
          //don't add if already have a friend.
          if ((roomType == Friend.RoomType.Peer) &&
-             (potentialFriend.toString() in visIDToFriendMap))
+             (potentialFriend.toString() in this.visIDToFriendMap))
          {
              return;
          }
          else if ((roomType != Friend.RoomType.Peer) &&
-                  (hashRoomVis(potentialFriend,reqMsg) in visRoomIDToFriendMap))
+                  (hashRoomVis(potentialFriend,reqMsg) in this.visRoomIDToFriendMap))
          {
              return;
          }
@@ -270,20 +264,20 @@ system.require('hawthorneApps/im/room.em');
          //sends you multiple requests, and you only confirm the
          //first.
          if ((roomType == Friend.RoomType.Peer) &&
-             (newFriendVis.toString() in visIDToFriendMap))
+             (newFriendVis.toString() in this.visIDToFriendMap))
          {
              return;        
          }
          else if ((roomType != Friend.RoomType.Peer) &&
-                  (hashRoomVis(newFriendVis,reqMsg) in visRoomIDToFriendMap))
+                  (hashRoomVis(newFriendVis,reqMsg) in this.visRoomIDToFriendMap))
          {
              return;
          }
-                  
+
 
          //groupID may have vanished while you were adding friend.
          //Unlikely, but possible.
-         if (! newFriendGroupID in groupIDToGroupMap)
+         if (! newFriendGroupID in this.groupIDToGroupMap)
          {
              //if wanted to, could instead go through process of
              //adding friend again.
@@ -304,18 +298,18 @@ system.require('hawthorneApps/im/room.em');
                         friendID);
 
          
-         groupIDToGroupMap[newFriendGroupID].addMember(friendToAdd);
+         this.groupIDToGroupMap[newFriendGroupID].addMember(friendToAdd);
          if (roomType== Friend.RoomType.Peer)
          {
-             visIDToFriendMap[newFriendVis.toString()] = friendToAdd;                 
+            this.visIDToFriendMap[newFriendVis.toString()] = friendToAdd;                 
          }
          else
          {
-             visRoomIDToFriendMap[hashRoomVis(newFriendVis,reqMsg)] =
+             this.visRoomIDToFriendMap[hashRoomVis(newFriendVis,reqMsg)] =
                  friendToAdd;                 
          }
          
-         imIDToFriendMap [friendToAdd.imID] = friendToAdd;
+         this.imIDToFriendMap [friendToAdd.imID] = friendToAdd;
 
          //Takes care of the case where the other side had initiated
          //friendship first: we reply saying that we'd be happy to be
@@ -341,14 +335,14 @@ system.require('hawthorneApps/im/room.em');
       */
      function melvilleFriendClicked(friendID)
      {
-         if (!friendID in imIDToFriendMap)
+         if (!friendID in this.imIDToFriendMap)
          {
              IMUtil.dPrint('\n\nClicked on a friendID that '+
                            'does not exist in imIDToFriendMap\n\n');
              return;
          }
 
-         imIDToFriendMap[friendID].beginConversation();
+         this.imIDToFriendMap[friendID].beginConversation();
      }
 
 
@@ -365,20 +359,20 @@ system.require('hawthorneApps/im/room.em');
      function melvilleGroupDataChange(groupID,newGroupName,
                                       newGroupStatus,newGroupProfile)
      {
-         if (!groupID in groupIDToGroupMap)
+         if (!groupID in this.groupIDToGroupMap)
          {
              IMUtil.dPrint('\n\nError in melvilleGroupDataChange.  ' +
                            'Do not have group with associated id.\n\n');
              return;
          }
          
-         groupIDToGroupMap[groupID].changeName(
+         this.groupIDToGroupMap[groupID].changeName(
              IMUtil.htmlEscape(newGroupName));
          
-         groupIDToGroupMap[groupID].changeStatus(
+         this.groupIDToGroupMap[groupID].changeStatus(
              IMUtil.htmlEscape(newGroupStatus));
          
-         groupIDToGroupMap[groupID].changeProfile(
+         this.groupIDToGroupMap[groupID].changeProfile(
              IMUtil.htmlEscape(newGroupProfile));
          
          //re-paint the group.
@@ -395,29 +389,29 @@ system.require('hawthorneApps/im/room.em');
                                             newFriendName,
                                             newFriendGroupID,prevFriendGroupID)
      {
-         if (! friendID in imIDToFriendMap)
+         if (! friendID in this.imIDToFriendMap)
          {
              IMUtil.dPrint('\n\nError in melvilleFriendNameChange.  ' +
                            'Do not have friend with associated id.\n\n');
              return;                 
          }
 
-         imIDToFriendMap[friendID].changeName(
+         this.imIDToFriendMap[friendID].changeName(
              IMUtil.htmlEscape(newFriendName));
 
 
          //friend transitioned from one group to another
          if (newFriendGroupID != prevFriendGroupID)
          {
-             if (newFriendGroupID in groupIDToGroupMap)
+             if (newFriendGroupID in this.groupIDToGroupMap)
              {
-                 if (prevFriendGroupID in groupIDToGroupMap)
+                 if (prevFriendGroupID in this.groupIDToGroupMap)
                  {
-                     groupIDToGroupMap[prevFriendGroupID].removeMember(
-                         imIDToFriendMap[friendID]);
+                     this.groupIDToGroupMap[prevFriendGroupID].removeMember(
+                         this.imIDToFriendMap[friendID]);
                  }
-                 groupIDToGroupMap[newFriendGroupID].addMember(
-                     imIDToFriendMap[friendID]);
+                 this.groupIDToGroupMap[newFriendGroupID].addMember(
+                     this.imIDToFriendMap[friendID]);
              }
              else
              {
@@ -443,7 +437,7 @@ system.require('hawthorneApps/im/room.em');
              IMUtil.htmlEscape(groupStatus),IMUtil.htmlEscape(groupProfile),
              true,this);
 
-         groupIDToGroupMap[defaultGroup.groupID] = defaultGroup;
+         this.groupIDToGroupMap[defaultGroup.groupID] = defaultGroup;
          //re-paint display to reflect changes.
          this.display();
      }
@@ -474,11 +468,11 @@ system.require('hawthorneApps/im/room.em');
      function friendRequestAccept(requestRecID)
      {
          var groupIDToGroupNames= null;
-         for (var s in groupIDToGroupMap)
+         for (var s in this.groupIDToGroupMap)
          {
              if (groupIDToGroupNames === null)
                  groupIDToGroupNames = { };
-             groupIDToGroupNames [s] = groupIDToGroupMap[s].groupName;        
+             groupIDToGroupNames [s] = this.groupIDToGroupMap[s].groupName;        
          }
 
          //have no groups.  create one: default
@@ -489,7 +483,7 @@ system.require('hawthorneApps/im/room.em');
 
              groupIDToGroupNames = {};
 
-             groupIDToGroupMap[newGroup.groupID]   = newGroup;
+             this.groupIDToGroupMap[newGroup.groupID]   = newGroup;
              groupIDToGroupNames[newGroup.groupID] = newGroup.groupName;
              this.display();
          }
@@ -499,6 +493,18 @@ system.require('hawthorneApps/im/room.em');
          //friend in.
          this.guiMod.call('melvilleAppGuiNewFriendGroupID',
                           requestRecID, groupIDToGroupNames);
+     }
+
+
+     /**
+      User has requested to create a room.  Pull up a dialog for the
+      new room.
+      */
+     function melvilleCreateRoomClicked()
+     {
+         var roomID = IMUtil.getUniqueInt();
+         this.roomIDToRoomMap[roomID] =
+             new Room('someRoom',[],this,roomID);
      }
      
      
@@ -523,6 +529,9 @@ system.require('hawthorneApps/im/room.em');
          
          this.guiMod.bind('userRespAddFriend',
                           std.core.bind(userRespAddFriend,this));
+
+         this.guiMod.bind('melvilleCreateRoomClicked',
+                          std.core.bind(melvilleCreateRoomClicked,this));
          
          
          //still must clear pendingEvents.
@@ -570,6 +579,18 @@ system.require('hawthorneApps/im/room.em');
      
      AppGui = function()
      {
+         //keys are string-ified versions of visible ids
+         this.visIDToFriendMap  = {};
+         //some friends are room friends and have special ids as a result
+         this.visRoomIDToFriendMap = {};
+         this.imIDToFriendMap   = {};
+         this.groupIDToGroupMap = {};
+
+         //tracks all rooms that we are in charge of.
+         this.roomIDToRoomMap = {};
+
+
+         
          this.guiMod = simulator._simulator.addGUITextModule(
              IM_APP_NAME,
              getAppGUIText(),
@@ -582,7 +603,7 @@ system.require('hawthorneApps/im/room.em');
          //create a default group to friends in
          var defaultGroup = new Group('default',IMUtil.getUniqueInt(),
                                       'def status','def prof',true,this);
-         groupIDToGroupMap[defaultGroup.groupID] = defaultGroup;
+         this.groupIDToGroupMap[defaultGroup.groupID] = defaultGroup;
 
          
          var wrappedTryAddFriend = std.core.bind(tryAddFriend,this);
@@ -614,9 +635,9 @@ system.require('hawthorneApps/im/room.em');
          function handleRegRequest(msg, sender)
          {
              //do we already have a friend with this presence id?
-             if (sender.toString() in visIDToFriendMap)
+             if (sender.toString() in this.visIDToFriendMap)
              {
-                 var friendToProcMsg = visIDToFriendMap[sender.toString()];
+                 var friendToProcMsg = this.visIDToFriendMap[sender.toString()];
                  friendToProcMsg.processRegReqMsg (msg);
              }
              else
@@ -638,9 +659,9 @@ system.require('hawthorneApps/im/room.em');
              var roomVisHash = hashRoomVis(sender,msg);
 
              //already have a friend in this room.
-             if (roomVisHash in visRoomIDToFriendMap)
+             if (roomVisHash in this.visRoomIDToFriendMap)
              {
-                 var friendToProcMsg = visRoomIDToFriendMap[roomVisHash];
+                 var friendToProcMsg = this.visRoomIDToFriendMap[roomVisHash];
                  friendToProcMsg.processRegReqMsg(msg);
              }
              else
@@ -651,7 +672,7 @@ system.require('hawthorneApps/im/room.em');
                      IMUtil.dPrint('This is hash: \n');
                      IMUtil.dPrint(roomVisHash);
                      IMUtil.dPrint('\n\nAnd these are others: \n');
-                     for (var s in visRoomIDToFriendMap)
+                     for (var s in this.visRoomIDToFriendMap)
                          IMUtil.dPrint(s + '\n');
                      throw new Error('\n\nWrong roomType in handleRoomRegRequest\n\n');
                  }
@@ -689,7 +710,7 @@ system.require('hawthorneApps/im/room.em');
          };
 
          var index = hashRoomVis(newFriend.vis,dummyMsg);
-         visRoomIDToFriendMap[index] = newFriend;
+         this.visRoomIDToFriendMap[index] = newFriend;
      };
 
      
@@ -701,8 +722,8 @@ system.require('hawthorneApps/im/room.em');
      {
          var returner = null;
 
-         if (friendVisID in visIDToFriendMap)
-             returner = visIDToFriendMap[friendVisID].name;
+         if (friendVisID in this.visIDToFriendMap)
+             returner = this.visIDToFriendMap[friendVisID].name;
 
          
          return returner;
@@ -735,12 +756,12 @@ system.require('hawthorneApps/im/room.em');
          }
          
          
-         for (var s in imIDToFriendMap)
-             imIDToFriendMap[s].kill();
+         for (var s in this.imIDToFriendMap)
+             this.imIDToFriendMap[s].kill();
 
-         imIDToFriendMap   = {};
-         visIDToFriendMap  = {};
-         groupIDToGroupMap = {};
+         this.imIDToFriendMap   = {};
+         this.visIDToFriendMap  = {};
+         this.groupIDToGroupMap = {};
      };
 
 
@@ -752,15 +773,15 @@ system.require('hawthorneApps/im/room.em');
      {
          var returner = {};
 
-         for (var s in groupIDToGroupMap )
+         for (var s in this.groupIDToGroupMap )
          {
 
-             var groupName    =  groupIDToGroupMap[s].groupName;
-             var groupID      =  groupIDToGroupMap[s].groupID;
-             var groupStatus  =  groupIDToGroupMap[s].status;
-             var groupProfile =  groupIDToGroupMap[s].profile;
-             var groupVisible =  groupIDToGroupMap[s].visible;
-             var groupFriends =  groupIDToGroupMap[s].getFriends();
+             var groupName    =  this.groupIDToGroupMap[s].groupName;
+             var groupID      =  this.groupIDToGroupMap[s].groupID;
+             var groupStatus  =  this.groupIDToGroupMap[s].status;
+             var groupProfile =  this.groupIDToGroupMap[s].profile;
+             var groupVisible =  this.groupIDToGroupMap[s].visible;
+             var groupFriends =  this.groupIDToGroupMap[s].getFriends();
              
              var singleItem   =  [groupID,groupStatus,groupProfile,
                                   groupVisible,groupFriends];
@@ -776,8 +797,8 @@ system.require('hawthorneApps/im/room.em');
       */
      AppGui.prototype.debugBroadcast = function(toBroadcast)
      {
-         for (var s in imIDToFriendMap)
-             imIDToFriendMap[s].msgToFriend(toBroadcast);
+         for (var s in this.imIDToFriendMap)
+             this.imIDToFriendMap[s].msgToFriend(toBroadcast);
      };
 
      /**
@@ -789,11 +810,14 @@ system.require('hawthorneApps/im/room.em');
      {
          //collect all friends
          var allFriends = [];
-         for (var s in imIDToFriendMap)
-             allFriends.push(imIDToFriendMap[s]);
+         for (var s in this.imIDToFriendMap)
+             allFriends.push(this.imIDToFriendMap[s]);
 
-         var room = new Room('debugRoom', allFriends,
+         var room = new Room('debugRoom',
                              this, IMUtil.getUniqueInt());
+
+         for (var s in allFriends)
+             room.addFriend(allFriends[s]);
 
          return room;
      };
@@ -920,7 +944,13 @@ system.require('hawthorneApps/im/room.em');
              return 'melvilleAppGui_friend_group_change_selectID' +
                  friendID.toString();
          }
-         
+
+         //send event to listening emerson code whenever user wants to
+         //create a room.
+         function melvilleAppGuiCreateRoomClicked()
+         {
+             sirikata.event('melvilleCreateRoomClicked');
+         }
          
          /**
           param {object <string, [int, string, string, bool, array]>}
@@ -961,7 +991,12 @@ system.require('hawthorneApps/im/room.em');
                  'melvilleAppGuiCreateGroupClicked()">';
              htmlToDisplay += '<b> New group</b>';
              htmlToDisplay += '</div>';
-
+             
+             htmlToDisplay += '<div onclick="' +
+                 'melvilleAppGuiCreateRoomClicked()">';
+             htmlToDisplay += '<b> New room</b>';
+             htmlToDisplay += '</div>';
+             
              htmlToDisplay += '<div id="' +
                  genCreateGroupDivID() +
                  '"' + 'style="display: none"' + 
@@ -1134,19 +1169,12 @@ system.require('hawthorneApps/im/room.em');
          melvilleWarnWindow.hide();
 
 
-
-
-
-         
-
          //displays warning messages in new gui.
          warnAppGui = function(toWarnWith)
          {
              $('#melvilee-chat-warn-gui').append('<br/>' +toWarnWith);
              melvilleWarnWindow.show();
          };
-
-
 
          
          function genAddFriendRequestID(userReqID)
