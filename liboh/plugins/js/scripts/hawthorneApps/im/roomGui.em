@@ -6,13 +6,13 @@
          this.rmID = rmID;
          this.guiInitialized = false;
          this.room = room;
-         // this.guiMod = simulator._simulator.addGUITextModule(
-         //     guiName(this),
-         //     getRoomGuiText(this),
-         //     std.core.bind(guiInitFunc,undefined,this)
-         // );
-         
+         this.guiMod = simulator._simulator.addGUITextModule(
+             guiName(this),
+             getRoomGuiText(this),
+             std.core.bind(guiInitFunc,undefined,this)
+         );
 
+//         system.__debugFileWrite(getRoomGuiText(this),'roomGuiText.em');
      };
 
 
@@ -188,7 +188,7 @@
              else
                  newHtml += ' onclick="melvilleRmMembFuncAdd( ';
                  
-             newHtml += '\'' + inRoom[s][0] + '\',\'' + inRoom[s][1] + '\'")>';
+             newHtml += '\\'' + inRoom[s][0] + '\\',\\'' + inRoom[s][1] + '\\'")>';
              
              newHtml += inRoom[s][0];
              newHtml += '</div>';             
@@ -232,8 +232,12 @@
              membershipWindow.show();
          };
 
+         
          @;
 
+         //close the onready function and the sirikata.ui 
+         returner += '});'
+         return returner;
      }
      
  })();
