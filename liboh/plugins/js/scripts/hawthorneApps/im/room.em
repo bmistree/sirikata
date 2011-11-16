@@ -1,7 +1,7 @@
 
 system.require('hawthorneApps/im/imUtil.em');
 system.require('hawthorneApps/im/friend.em');
-//system.require('hawthorneApps/im/roomGui.em');
+system.require('hawthorneApps/im/roomGui.em');
 
 (function()
  {
@@ -23,12 +23,12 @@ system.require('hawthorneApps/im/friend.em');
       */
      Room = function(name,appGui,rmID)
      {
+         IMUtil.dPrint('\nGot into room constructor\n\n');
          this.name = name;
-
          this.friendArray = [];
-         
          this.appGui = appGui;
          this.rmID   = rmID;
+         this.roomGui = new RoomGui(IMUtil.getUniqueInt(),this);
      };
 
      /**

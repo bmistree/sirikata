@@ -504,7 +504,7 @@ system.require('hawthorneApps/im/room.em');
      {
          var roomID = IMUtil.getUniqueInt();
          this.roomIDToRoomMap[roomID] =
-             new Room('someRoom',[],this,roomID);
+             new Room('someRoom',this,roomID);
      }
      
      
@@ -947,10 +947,10 @@ system.require('hawthorneApps/im/room.em');
 
          //send event to listening emerson code whenever user wants to
          //create a room.
-         function melvilleAppGuiCreateRoomClicked()
+         melvilleAppGuiCreateRoomClicked = function()
          {
              sirikata.event('melvilleCreateRoomClicked');
-         }
+         };
          
          /**
           param {object <string, [int, string, string, bool, array]>}
@@ -991,9 +991,11 @@ system.require('hawthorneApps/im/room.em');
                  'melvilleAppGuiCreateGroupClicked()">';
              htmlToDisplay += '<b> New group</b>';
              htmlToDisplay += '</div>';
-             
+
+             var onClickString = 'melvilleAppGuiCreateRoomClicked();';
+
              htmlToDisplay += '<div onclick="' +
-                 'melvilleAppGuiCreateRoomClicked()">';
+                 onClickString + '">';
              htmlToDisplay += '<b> New room</b>';
              htmlToDisplay += '</div>';
              
@@ -1405,13 +1407,10 @@ system.require('hawthorneApps/im/room.em');
          };
 
 
-
-
          function generateNewFriendGroupDivID (requestRecID)
          {
              return requestRecID.toString() + '___newFriendID';
          }
-
 
          function genFriendChangeGroupSelectIDFromRequestID(requestRecID)
          {
