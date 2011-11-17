@@ -68,7 +68,7 @@
 
       Note: added and removed cannot have same members.
       */
-     function membershipChange(roomGui,added,removed)
+     function requestMembershipChange(roomGui,added,removed)
      {
          //add new friends
          for(var s in added)
@@ -88,11 +88,10 @@
          for (var s in removed)
              roomGui.room.removeFriend(s);
      }
+
      
      function guiInitFunc(roomGui)
      {
-         IMUtil.dPrint('\n\n\nGot into gui init func\n\n');
-         
          //called when user clicks membership dialog
          var wrappedRequestMembDialogEmerson =  std.core.bind(
              requestMembershipDialogEmerson,undefined,roomGui);
@@ -198,26 +197,55 @@
           \param {bool} inRoom - True if the entry is currently in the
           room.  False otherwise.
           
-          \return {string} - html for div enclosing this element.
+          \return {array} - First element of array is a string
+          representing the html for div enclosing this element.  The
+          second element is a function to execute after including the
+          html the page (binds action to when button is clicked).
           */
          function generateMembershipDiv(entry,inRoom)
          {
-             var membDivID = getDivIDMemDialog(inRoom[s]);
+             var membDivID = getDivIDMemDialog(entry);
              var newHtml = '';
-             newHtml += '<div id="' + membDivID + '"';
-             if (inRoom)
-                 newHtml += ' onclick="melvilleRmMembFuncRemove( ';
-             else
-                 newHtml += ' onclick="melvilleRmMembFuncAdd( ';
-                 
-             newHtml += '\\'' + inRoom[s][0] + '\\',\\'' + inRoom[s][1] + '\\'")>';
-             
-             newHtml += inRoom[s][0];
-             newHtml += '</div>';             
+             newHtml += '<button id="' + membDivID + '" >';
+             newHtml += entry[0];
+             newHtml += '</button><br/>';
 
-             return newHtml;
+             var toExecAfter= function()
+             {
+                 sirikata.ui.button('#' + membDivID).click(
+                     function()
+                     {
+                         //see arguments to melvilleRmMembFuncAddRemove
+                         melvilleRmMembFuncAddRemove(entry,!inRoom);
+                     }
+                 );
+             };
+             return [newHtml,toExecAfter];
          }
 
+         /**
+          param {bool} add - true if we're adding this entry to the
+          room, false otherwise.
+          */
+         function melvilleRmMembFuncAddRemove(entry, add)
+         {
+             //remove previous entry
+             var membDivID = getDivIDMemDialog(entry);
+             sirikata.ui.button('#' + membDivID).remove();
+
+             //now add to correct column
+             var newEntry = generateMembershipDiv(entry,add);
+             if (add)
+                 $('#' + generateInRoomTableCellDivID()).append(newEntry[0]);
+             else
+                 $('#' + generateNotInRoomTableCellDivID()).append(newEntry[0]);
+
+             newEntry[1]();
+         }
+         
+
+         
+         
          function generateInRoomTableCellDivID()
          {
              return roomCtrlDivName + '__inRoomTableCellID';
@@ -234,24 +262,44 @@
          {
              var newHtml = '<table><tr><td>In room</td>' +
                  '<td>Not in room</td></tr>';
-
+             
              newHtml += '<tr><td id="' + generateInRoomTableCellDivID() +
                  '">';
-             
+
+             //after include buttons from generateMembershipDiv in html page,
+             //need to execute all functions that bind callbacks to
+             //them when their buttons are pressed.  All of these
+             //functions should be stored in toExecAfter.  After
+             //including all the buttons in the page, run through full
+             //toExecAfter array, calling each function.
+             var toExecAfter = [];
              for (var s in inRoom)
-                 newHtml += generateMembershipDiv(inRoom[s],true);
+             {
+                 var newEntry = generateMembershipDiv(inRoom[s],true);                     
+                 newHtml += newEntry[0];
+                 toExecAfter.push(newEntry[1]);
+             }
+
 
              newHtml+= '</td><td id="' + generateNotInRoomTableCellDivID() +
                  '">';
 
              for (var s in notInRoom)
-                 newHtml += generateMembershipDiv(notInRoom[s],false);
-
+             {
+                 var newEntry =generateMembershipDiv(notInRoom[s],false);
+                 newHtml += newEntry[0];
+                 toExecAfter.push(newEntry[1]);
+             }
+             
              newHtml += '</td></tr></table>';
              
              var jqueryMembershipID = '#' + roomMembershipDivName;
              $(jqueryMembershipID).html(newHtml);
              membershipWindow.show();
+
+             for (var s in toExecAfter)
+                 toExecAfter[s]();
+
          };
          @;
 
