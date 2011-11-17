@@ -12,7 +12,8 @@
              std.core.bind(guiInitFunc,undefined,this)
          );
 
-//         system.__debugFileWrite(getRoomGuiText(this),'roomGuiText.em');
+
+         system.__debugFileWrite(getRoomGuiText(this),'testRoomGui.em');
      };
 
 
@@ -24,8 +25,10 @@
       elem 2: [friendName_2, friendID_2]
       ...
       */
-     function requestMembershipDialog(roomGui)
+     function requestMembershipDialogEmerson(roomGui)
      {
+         IMUtil.dPrint('\n\nGot into requestMembershipDialogEmerson function\n\n');
+         
          //find list of friends that are already in the room:
          var inRoom = {};
          for (var s in roomGui.room.friendMap)
@@ -38,7 +41,7 @@
          var notInRoom ={};
          for (var s in roomGui.room.appGui.imIDToFriendMap)
          {
-             IMUtil.dPrint('In requestMembershipDialog of roomGui.em: ' +
+             IMUtil.dPrint('In requestMembershipDialogEmerson of roomGui.em: ' +
                            'this check will not actually work: friends ' +
                            'have different ids since they are room ' +
                            'friends or individual friends.'
@@ -88,12 +91,14 @@
      
      function guiInitFunc(roomGui)
      {
-         //called when user clicks membership dialog
-         var wrappedRequestMembDialog =  std.core.bind(
-             requestMembershipDialog,undefined,roomGui);
+         IMUtil.dPrint('\n\n\nGot into gui init func\n\n');
          
-         roomGui.guiMod.bind('requestMembershipDialog',
-                             wrappedRequestMembDialog);
+         //called when user clicks membership dialog
+         var wrappedRequestMembDialogEmerson =  std.core.bind(
+             requestMembershipDialogEmerson,undefined,roomGui);
+         
+         roomGui.guiMod.bind('requestMembershipDialogEmerson',
+                             wrappedRequestMembDialogEmerson);
 
 
          //called when user finishes changing membership of room.
@@ -107,13 +112,15 @@
 
      function guiName(roomGui)
      {
-         return 'Room controller for room ' + roomGui.rmID.toString();
+         return 'Room_controller_for_room ' + roomGui.rmID.toString();
      }
+
+
      
      function getRoomGuiText(roomGui)
      {
          var name = 'melvilleRoomManagement__' + roomGui.rmID.toString();
-         var returner = "sirikata.ui('" + name  + "',";
+         var returner = "sirikata.ui('" + guiName(roomGui)  + "',";
          returner += 'function(){ ';
 
          returner += 'var roomCtrlDivName = "' + name + '";';
@@ -122,9 +129,18 @@
 
          //gui for displaying room controls.
          $('<div>' +
+
+           '<button id=' + getMelvilleRoomGuiMembershipID()+'> Change group membership</button>' +
+           
            '</div>' //end div at top.
           ).attr({id:roomCtrlDivName,title:'melvilleRoom'}).appendTo('body');
 
+
+         function getMelvilleRoomGuiMembershipID()
+         {
+             return roomCtrlDivName+'__changeGroupMembershipID';
+         }
+         
          var roomWindow = new sirikata.ui.window(
             '#' + roomCtrlDivName,
             {
@@ -137,7 +153,16 @@
          );
          roomWindow.show();
 
-
+         //executed when change membership button clicked: sends message down
+         //to emerson roomGui code 
+         sirikata.ui.button('#' + getMelvilleRoomGuiMembershipID()).click(
+             function()
+             {
+                 sirikata.event('requestMembershipDialogEmerson');             
+             }
+         );
+         
+         
          //gui for displaying membership controls
          $('<div>' +
            '</div>' //end div at top.
@@ -155,9 +180,6 @@
          );
          membershipWindow.hide();
 
-
-
-         
 
          /**
           \param entry - \see generateInRoomDiv
@@ -231,8 +253,6 @@
              $(jqueryMembershipID).html(newHtml);
              membershipWindow.show();
          };
-
-         
          @;
 
          //close the onready function and the sirikata.ui 
