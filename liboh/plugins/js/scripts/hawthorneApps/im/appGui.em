@@ -84,6 +84,7 @@ system.require('hawthorneApps/im/room.em');
      var requestHandler      = null;
      var roomRequestHandlerCoordinator = null;
      var roomRequestHandlerReceiver  = null;
+     var runningMelvilleHanlder = null;
      
      var WARN_EVENT          = 'WARN_EVENT';
      var DISPLAY_EVENT       = 'DISPLAY_EVENT';
@@ -96,13 +97,16 @@ system.require('hawthorneApps/im/room.em');
       a friend after having received a request message from that
       friend.  Is null if we're trying to add a friend from a
       proximity message.
+
+      @param {string-tainted} self-reported name of other presence (eg,
+      "behram", "tahir", etc.).
       
       don't add them as friend unless they aren't already your friend,
       they aren't you, and the user gives permission to add them.
       (For now, skipping user-asking part.)
       
       */
-     function tryAddFriend(potentialFriend,reqMsg)
+     function tryAddFriend(potentialFriend,reqMsg,nameOfPotentialFriend)
      {
          var roomType = Friend.RoomType.Peer;
          if (reqMsg !== null)
@@ -185,8 +189,10 @@ system.require('hawthorneApps/im/room.em');
 
          outstandingUserRequestMap[outUserReqID] = reqMapEntry;
          this.guiMod.call(
-             'checkAddFriend',potentialFriend.toString(),outUserReqID);
+             'checkAddFriend',potentialFriend.toString(),outUserReqID,
+             IMUtil.htmlEscape(nameOfPotentialFriend));
      }
+
 
      /**
       @param {unique int} requestID We passed an identifier on to the
@@ -589,7 +595,7 @@ system.require('hawthorneApps/im/room.em');
          //tracks all rooms that we are in charge of.
          this.roomIDToRoomMap = {};
 
-
+         this.myName = 'I have not filled in a name yet.';
          
          this.guiMod = simulator._simulator.addGUITextModule(
              IM_APP_NAME,
@@ -615,7 +621,15 @@ system.require('hawthorneApps/im/room.em');
              if (visAdded.toString() == system.self.toString())
                  return;
              
-             wrappedTryAddFriend(visAdded,null);
+             {'doYouRunMelville': true} >> visAdded >>
+                 [
+                     function(msg,sender)
+                     {
+                         if (typeof(msg.myName) ==='string')
+                             wrappedTryAddFriend(visAdded,null,msg.myName);                                       
+                     }
+                 ];
+
          }
 
          //additional true field indicates to also call handling
@@ -641,13 +655,33 @@ system.require('hawthorneApps/im/room.em');
                  friendToProcMsg.processRegReqMsg (msg);
              }
              else
-                 wrappedTryAddFriend(sender,msg);
+             {
+                 if (typeof(msg.myName) !== 'string')
+                 {
+                     IMUtil.dPrint('\n\nError, should not ' +
+                                   'have received a message ' +
+                                   'without a name\n\n');
+                     return;
+                 }
+                 wrappedTryAddFriend(sender,msg,msg.myName);                     
+             }
+
          }
          
          //actually set the handler for registration requests that do
          //not come from a room.
          requestHandler = std.core.bind(handleRegRequest,this) <<
              [{'imRegRequest'::},{'roomType':Friend.RoomType.Peer:},{'mID'::}];
+
+
+         //only want to query other presences that run app gui.  this
+         //is where answer that am running app gui.
+         function handleRunMelvilleQuestion(appGui,msg,sender)
+         {
+             msg.makeReply({'myName':appGui.myName}) >> [];
+         }
+         runningMelvilleHanlder = std.core.bind(handleRunMelvilleQuestion,undefined,this)
+             << [{'doYouRunMelville'::}];
 
 
          function handleRoomRegRequest(msg,sender)
@@ -755,6 +789,11 @@ system.require('hawthorneApps/im/room.em');
              roomRequestHandlerReceiver = null;
          }
          
+         if (runningMelvilleHanlder !== null)
+         {
+             runningMelvilleHanlder.clear();
+             runningMelvilleHanlder = null;
+         }
          
          for (var s in this.imIDToFriendMap)
              this.imIDToFriendMap[s].kill();
@@ -1201,11 +1240,14 @@ system.require('hawthorneApps/im/room.em');
           ensure that the user's response is associated with the
           correct request when function returns.
 
+          \param {string} selfReportedName - Name that friend says
+          he/she goes by.
+          
           This function gets called through Emerson, it opens the warn
           gui window asking the user if he/she wants to become friends
           with a visible that he/she currently is not friends with.
           */
-         checkAddFriend = function(visID, userReqID)
+         checkAddFriend = function(visID, userReqID, selfReportedName)
          {
              //add text to the warn window
              var moreFriendsText = '';
@@ -1215,7 +1257,7 @@ system.require('hawthorneApps/im/room.em');
                  '">';
 
              moreFriendsText += 'Do you want to become friends with: ' +
-                 visID + '?';
+                 visID + ' (self-reported name: ' + selfReportedName + ')?';
 
              //div for yes and no
              moreFriendsText += '<div id="' +

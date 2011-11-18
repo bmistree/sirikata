@@ -240,7 +240,8 @@ system.require('hawthorneApps/im/convGUI.em');
 
 
         { 'imRegRequest': 1, 'mID': this.imID,
-          'roomType': this.roomFriendType, 'friendID': this.friendID}
+          'roomType': this.roomFriendType, 'friendID': this.friendID,
+          'myName': this.appGui.myName}
             >> this.vis >>
             [ wrappedRegResponse, REGISTRATION_TIMEOUT, wrappedNoRegResponse];
     };

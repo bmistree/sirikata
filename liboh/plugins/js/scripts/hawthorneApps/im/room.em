@@ -24,7 +24,7 @@ system.require('hawthorneApps/im/roomGui.em');
      Room = function(name,appGui,rmID)
      {
          IMUtil.dPrint('\nGot into room constructor\n\n');
-         this.name = name;
+         this.myName = name;
          this.friendArray = [];
          this.appGui = appGui;
          this.rmID   = rmID;
