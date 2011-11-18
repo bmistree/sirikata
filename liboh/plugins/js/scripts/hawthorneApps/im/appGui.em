@@ -512,6 +512,11 @@ system.require('hawthorneApps/im/room.em');
          this.roomIDToRoomMap[roomID] =
              new Room('someRoom',this,roomID);
      }
+
+     function melvilleChangeName(newName)
+     {
+         this.myName = newName;
+     }
      
      
      //"this" is automatically bound to AppGui object in @see AppGui
@@ -538,6 +543,9 @@ system.require('hawthorneApps/im/room.em');
 
          this.guiMod.bind('melvilleCreateRoomClicked',
                           std.core.bind(melvilleCreateRoomClicked,this));
+
+         this.guiMod.bind('melvilleChangeName',
+                          std.core.bind(melvilleChangeName,this));
          
          
          //still must clear pendingEvents.
@@ -990,6 +998,11 @@ system.require('hawthorneApps/im/room.em');
          {
              sirikata.event('melvilleCreateRoomClicked');
          };
+
+         function genChangeNameInputID()
+         {
+             return 'melvilleChangeName__input_id';
+         }
          
          /**
           param {object <string, [int, string, string, bool, array]>}
@@ -1037,7 +1050,20 @@ system.require('hawthorneApps/im/room.em');
                  onClickString + '">';
              htmlToDisplay += '<b> New room</b>';
              htmlToDisplay += '</div>';
-             
+
+
+             //when click on this, item, upda
+             onClickString = 'melvilleChangeNameClicked();';
+             htmlToDisplay += '<div onclick="' +
+                 onClickString + '"> <b>Change name</b>';
+             htmlToDisplay += '</div>';
+
+             htmlToDisplay += '<input id="' + genChangeNameInputID() + '"';
+             htmlToDisplay += ' style="display: none" value="">'
+             htmlToDisplay += '</input>';
+
+             // lkjs;
+
              htmlToDisplay += '<div id="' +
                  genCreateGroupDivID() +
                  '"' + 'style="display: none"' + 
@@ -1080,7 +1106,7 @@ system.require('hawthorneApps/im/room.em');
                  htmlToDisplay += '<b>' + groupName +'</b>';
                  htmlToDisplay += '</div>'; //closes on group clicked div
 
-                 
+
                  htmlToDisplay += '<div id="' +
                      genGroupDivIDFromGroupID(groupID) +
                      '"' + 'style="display: none"' + 
@@ -1231,6 +1257,25 @@ system.require('hawthorneApps/im/room.em');
          {
              return '_friend_req_div_no_id_' + userReqID.toString();
          }
+
+         melvilleChangeNameClicked = function()
+         {
+             var itemToToggle= document.getElementById(genChangeNameInputID());
+
+             if (itemToToggle.style.display==='none')
+             {
+                 //makes text visible.
+                 itemToToggle.style.display = 'block';
+             }
+             else
+             {
+                 var newName = $('#' + genChangeNameInputID()).val();
+                 sirikata.event('melvilleChangeName',newName);
+                 //makes text invisible
+                 itemToToggle.style.display = 'none';
+             }
+         };
+
          
          /**
           \param {string} visid Presence id of the visible that we
