@@ -12,7 +12,6 @@
              std.core.bind(guiInitFunc,undefined,this)
          );
 
-
          system.__debugFileWrite(getRoomGuiText(this),'testRoomGui.em');
      };
 
@@ -73,7 +72,6 @@
          //add new friends
          for(var s in added)
          {
-             
              if (!(s in roomGui.room.appGui.imIDToFriendMap))
              {
                  IMUtil.dPrint('\nFriend id no longer ' +
@@ -88,9 +86,23 @@
          //remove
          for (var s in removed)
              roomGui.room.removeFriend(s);                 
-
      }
 
+
+     function updateOtherRoomInfo(roomGui, name, greetingMessage, loggingAddress)
+     {
+         IMUtil.dPrint('\n\nGot inot updateOtherRoomInfo.\n\n');
+         IMUtil.dPrint('\n\nName: ' + name + '\n\n');
+         IMUtil.dPrint('\n\nMessage: ' + greetingMessage + '\n\n');
+         IMUtil.dPrint('\n\nLogging: ' + loggingAddress + '\n\n');
+         
+         /*
+         roomGui.room.setName(name);
+         roomGui.room.setLoggingAddress(loggingAddress);
+         roomGui.room.setGreetingMessage(greetingMessage);
+          */
+     }
+     
      
      function guiInitFunc(roomGui)
      {
@@ -108,6 +120,17 @@
          );
          roomGui.guiMod.bind('membershipChange',
                              wrappedMembershipChange);
+
+
+         //called when user requests to change room name,
+         //when user requests that the room performs logging,
+         //when user wants to change message sent by room on
+         //registration, etc.
+         var wrappedUpdateOtherRoomInfo = std.core.bind(
+             updateOtherRoomInfo,undefined,roomGui
+         );
+         roomGui.guiMod.bind('updateOtherRoomInfo',
+                            wrappedUpdateOtherRoomInfo);
          
      }
 
@@ -131,12 +154,41 @@
          //gui for displaying room controls.
          $('<div>' +
 
-           '<button id=' + getMelvilleRoomGuiMembershipID()+'> Change group membership</button>' +
+           //allow to change name, message sent, and logging information.
+           'room name: <input value="some name" style="width:250px;" id="' +
+           getRoomNameTextAreaID() + '"></input> <br/>' + 
+           'room message: <input value="I am a room." style="width:250px;" id="' +
+           getRoomMessageTextAreaID() + '"></input> <br/>' +
+           'room logging: <input value="" style="width:250px;" id="' +
+           getRoomLoggingTextAreaID() + '"></input> <br/>' +
            
+           '<button id=' + getRoomGuiCharacteristicButtonID() + '> Update </button><br/>' +
+           '<button id=' + getMelvilleRoomGuiMembershipID()+'> Change group membership</button>' +
            '</div>' //end div at top.
           ).attr({id:roomCtrlDivName,title:'melvilleRoom'}).appendTo('body');
 
 
+         function getRoomNameTextAreaID()
+         {
+             return 'room_name_textarea_'+ roomCtrlDivName;
+         }
+
+         function getRoomMessageTextAreaID()
+         {
+             return 'room_message_text_area_id' + roomCtrlDivName;
+         }
+
+         function getRoomLoggingTextAreaID()
+         {
+             return 'room_logging_text_area_id' + roomCtrlDivName;
+         }
+
+         function getRoomGuiCharacteristicButtonID()
+         {
+             return 'room_gui_characteristic_buttonID_' + roomCtrlDivName;
+         }
+         
+         
          function getMelvilleRoomGuiMembershipID()
          {
              return roomCtrlDivName+'__changeGroupMembershipID';
@@ -163,6 +215,28 @@
              }
          );
          
+
+         //whenever characteristics button is pressed, send message to
+         //underlying emerson code to update room gui with values captured
+         //from textareas
+         sirikata.ui.button('#' + getRoomGuiCharacteristicButtonID()).click(
+             function()
+             {
+                 var newNameID = getRoomNameTextAreaID();
+                 var newMessageID = getRoomMessageTextAreaID();
+                 var newLoggingID = getRoomLoggingTextAreaID();
+
+
+                 var newMessage = $('#' + newMessageID).val();
+                 var newLogging = $('#' + newLoggingID).val();
+                 var newName = $('#' + newNameID).val();
+                 
+                 sirikata.event('updateOtherRoomInfo',newName,newMessage,newLogging);
+             }
+         );
+
+         
+
          
          //gui for displaying membership controls
          $('<div>' +
@@ -263,9 +337,6 @@
 
              newEntry[1]();
          }
-         
-
-         
          
          function generateInRoomTableCellDivID()
          {
