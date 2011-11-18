@@ -41,10 +41,10 @@
          var notInRoom ={};
          for (var s in roomGui.room.appGui.imIDToFriendMap)
          {
-             IMUtil.dPrint('In requestMembershipDialogEmerson of roomGui.em: ' +
+             IMUtil.dPrint('\n\nIn requestMembershipDialogEmerson of roomGui.em: ' +
                            'this check will not actually work: friends ' +
                            'have different ids since they are room ' +
-                           'friends or individual friends.'
+                           'friends or individual friends.\n\n'
                           );
 
              if (s in inRoom)
@@ -73,6 +73,7 @@
          //add new friends
          for(var s in added)
          {
+             
              if (!(s in roomGui.room.appGui.imIDToFriendMap))
              {
                  IMUtil.dPrint('\nFriend id no longer ' +
@@ -86,7 +87,8 @@
 
          //remove
          for (var s in removed)
-             roomGui.room.removeFriend(s);
+             roomGui.room.removeFriend(s);                 
+
      }
 
      
@@ -189,6 +191,16 @@
                  roomCtrlDivName + 
                  entry[1].toString();
          }
+
+         function generateInRoomClassName()
+         {
+             return 'inRoom_class_melville_'+roomCtrlDivName;
+         }
+
+         function generateNotInRoomClassName()
+         {
+             return 'not_inRoom_class_melville_'+roomCtrlDivName;
+         }
          
          /**
           \param {array} entry - first element of entry array is the
@@ -206,7 +218,16 @@
          {
              var membDivID = getDivIDMemDialog(entry);
              var newHtml = '';
-             newHtml += '<button id="' + membDivID + '" >';
+             newHtml += '<button id="' + membDivID + '" ';
+             newHtml += 'class="';
+             if (inRoom)
+                 newHtml += generateInRoomClassName();
+             else
+                 newHtml += generateNotInRoomClassName();
+
+             newHtml += '" ';
+             newHtml += 'value="' + entry[1] + '" ';
+             newHtml += '>';
              newHtml += entry[0];
              newHtml += '</button><br/>';
 
@@ -255,13 +276,29 @@
          {
              return roomCtrlDivName + '__notInRoomTableCellID';
          }
+
+
+         function getUpdateMembershipButtonID()
+         {
+             return 'membership_button_submit_id_' +
+                 roomCtrlDivName;
+         }
          
-         
-         //this gets called
+
+         /**
+          this gets called from the emerson function
+          requestMembershipDialogEmerson.
+
+          \param {map: <imID,[entryName,imID]>} inRoom - represents
+          all friends that are already in room.
+
+          \param {map: <imID,[entryName,imID]>} inRoom - represents
+          all friends that are not already in room.
+          */
          requestMembershipDialog = function(inRoom,notInRoom)
          {
-             var newHtml = '<table><tr><td>In room</td>' +
-                 '<td>Not in room</td></tr>';
+             var newHtml = '<table><tr><td width="300">In room</td>' +
+                 '<td width="300">Not in room</td></tr>';
              
              newHtml += '<tr><td id="' + generateInRoomTableCellDivID() +
                  '">';
@@ -280,7 +317,6 @@
                  toExecAfter.push(newEntry[1]);
              }
 
-
              newHtml+= '</td><td id="' + generateNotInRoomTableCellDivID() +
                  '">';
 
@@ -292,6 +328,11 @@
              }
              
              newHtml += '</td></tr></table>';
+
+             newHtml += '<button id="' + getUpdateMembershipButtonID() +'">';
+             newHtml += 'commit membership changes';
+             newHtml += '</button>';
+             
              
              var jqueryMembershipID = '#' + roomMembershipDivName;
              $(jqueryMembershipID).html(newHtml);
@@ -300,6 +341,41 @@
              for (var s in toExecAfter)
                  toExecAfter[s]();
 
+             
+             //must also execute this after setting the html.
+             sirikata.ui.button('#' + getUpdateMembershipButtonID()).click(
+                 function()
+                 {
+                     var allInRoom =
+                         $('.' + generateInRoomClassName()).toArray();
+                     
+                     var allNotInRoom =
+                         $('.' + generateNotInRoomClassName()).toArray();
+
+                     var added   = {};
+                     var removed = {};
+                     for (var s in allInRoom)
+                     {
+                         var addedID = allInRoom[s].value;
+                         if (addedID in notInRoom)
+                             added[addedID] = addedID;
+                         
+                     }
+                     for (var s in allNotInRoom)
+                     {
+                         var removedID = allNotInRoom[s].value;
+                         if (removedID in inRoom)
+                             removed[removedID] = removedID;
+                     }
+
+                     
+                     sirikata.event('membershipChange',added,removed);
+                     
+                     //close membershipWindow.
+                     membershipWindow.hide();
+                 }
+             );
+             
          };
          @;
 
