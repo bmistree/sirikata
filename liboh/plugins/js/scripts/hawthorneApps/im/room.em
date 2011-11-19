@@ -2,6 +2,7 @@
 system.require('hawthorneApps/im/imUtil.em');
 system.require('hawthorneApps/im/friend.em');
 system.require('hawthorneApps/im/roomGui.em');
+system.require('std/http/http.em');
 
 (function()
  {
@@ -23,12 +24,29 @@ system.require('hawthorneApps/im/roomGui.em');
       */
      Room = function(name,appGui,rmID)
      {
-         IMUtil.dPrint('\nGot into room constructor\n\n');
          this.myName = name;
+         this.loggingAddress = null;
          this.friendArray = [];
          this.appGui = appGui;
          this.rmID   = rmID;
          this.roomGui = new RoomGui(IMUtil.getUniqueInt(),this);
+     };
+
+
+     Room.prototype.setName = function(newName)
+     {
+         IMUtil.dPrint('\n\nIn room.em.  Setting name to: ');
+         IMUtil.dPrint(newName);
+         IMUtil.dPrint('\n\n');
+         this.myName = newName;
+     };
+
+     Room.prototype.setLoggingAddress = function(newLoggingAddress)
+     {
+         if (newLoggingAddress == '')
+             this.loggingAddress = null;
+         else
+             this.loggingAddress = newLoggingAddress;
      };
 
      /**
@@ -159,6 +177,18 @@ system.require('hawthorneApps/im/roomGui.em');
                  this.friendArray[s].msgToFriend(
                      toWrite,friendMsgFrom.vis.toString());
              }
+         }
+         
+         //at the end if logging address isn't null, forward the
+         //message to a log
+         if (this.loggingAddress != null)
+         {
+             var url = this.loggingAddress;
+             // var url = 'http://bmistree.stanford.edu/testLoggingChat.php?messageFrom=';
+             url += encodeURI(friendMsgFrom.vis.toString());
+             url += '&message=';
+             url += encodeURI(toWrite);
+             std.http.basicGet(url,function(){});
          }
      };
 

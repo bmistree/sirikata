@@ -96,11 +96,9 @@
          IMUtil.dPrint('\n\nMessage: ' + greetingMessage + '\n\n');
          IMUtil.dPrint('\n\nLogging: ' + loggingAddress + '\n\n');
          
-         /*
          roomGui.room.setName(name);
          roomGui.room.setLoggingAddress(loggingAddress);
-         roomGui.room.setGreetingMessage(greetingMessage);
-          */
+         //roomGui.room.setGreetingMessage(greetingMessage);
      }
      
      

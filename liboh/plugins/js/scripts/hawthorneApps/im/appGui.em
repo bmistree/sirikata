@@ -112,6 +112,7 @@ system.require('hawthorneApps/im/room.em');
          if (reqMsg !== null)
              roomType = reqMsg.roomType;
 
+         
          //don't try to add yourself as a friend
          if (potentialFriend.toString() == system.self.toString())
              return;
@@ -719,7 +720,7 @@ system.require('hawthorneApps/im/room.em');
                      throw new Error('\n\nWrong roomType in handleRoomRegRequest\n\n');
                  }
                   
-                 wrappedTryAddFriend(sender,msg);
+                 wrappedTryAddFriend(sender,msg,msg.myName);
              }
          }
          
