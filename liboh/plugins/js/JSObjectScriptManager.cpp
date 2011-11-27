@@ -234,6 +234,9 @@ void JSObjectScriptManager::createSystemTemplate()
     mSystemTemplate->Set(v8::String::New("timeout"), v8::FunctionTemplate::New(JSSystem::root_timeout));
     mSystemTemplate->Set(v8::String::New("print"), v8::FunctionTemplate::New(JSSystem::root_print));
 
+    mSystemTempalte->Set(v8::String::New("asyncImport"), v8::FunctionTemplate::New(JSSystem::root_asyncImport);
+
+    
     mSystemTemplate->Set(v8::String::New("getAssociatedPresence"), v8::FunctionTemplate::New(JSSystem::getAssociatedPresence));
 
 

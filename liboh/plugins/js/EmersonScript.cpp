@@ -76,10 +76,9 @@ namespace JS {
 #define EMERSON_UNRELIABLE_COMMUNICATION_PORT 12
 
 EmersonScript::EmersonScript(HostedObjectPtr ho, const String& args, const String& script, JSObjectScriptManager* jMan)
- : JSObjectScript(jMan, ho->getObjectHost()->getStorage(), ho->getObjectHost()->getPersistedObjectSet(), ho->id()),
+ : JSObjectScript(jMan, ho->getObjectHost()->getStorage(), ho->getObjectHost()->getPersistedObjectSet(), ho->id(),ho),
    JSVisibleManager(this),
    EmersonMessagingManager(ho->context()),
-   mParent(ho),
    mHandlingEvent(false),
    mResetting(false),
    mKilling(false),
@@ -90,16 +89,16 @@ EmersonScript::EmersonScript(HostedObjectPtr ho, const String& args, const Strin
     JSObjectScript::initialize(args, script,resourceMax);
 
     // Subscribe for session events
-    mParent->addListener((SessionEventListener*)this);
+    ho->addListener((SessionEventListener*)this);
     // And notify the script of existing ones
     HostedObject::SpaceObjRefVec spaceobjrefs;
-    mParent->getSpaceObjRefs(spaceobjrefs);
+    ho->getSpaceObjRefs(spaceobjrefs);
     if (spaceobjrefs.size() > 1)
         JSLOG(fatal,"Error: Connected to more than one space.  Only enabling scripting for one space.");
 
     //default connections.
     for(HostedObject::SpaceObjRefVec::const_iterator space_it = spaceobjrefs.begin(); space_it != spaceobjrefs.end(); space_it++)
-        onConnected(mParent, *space_it, HostedObject::DEFAULT_PRESENCE_TOKEN);
+        onConnected(ho, *space_it, HostedObject::DEFAULT_PRESENCE_TOKEN);
 }
 
 
@@ -579,8 +578,6 @@ v8::Handle<v8::Value> EmersonScript::create_timeout(double period,v8::Persistent
     v8::Local<v8::Object> localReturner = mManager->mTimerTemplate->NewInstance();
 
 
-//    v8::Persistent<v8::Object> returner =
-//    v8::Persistent<v8::Object>::New(mManager->mTimerTemplate->NewInstance());
     v8::Persistent<v8::Object> returner = v8::Persistent<v8::Object>::New(localReturner);
 
     returner->SetInternalField(TIMER_JSTIMERSTRUCT_FIELD,External::New(jstimer));

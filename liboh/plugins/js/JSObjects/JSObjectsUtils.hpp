@@ -121,6 +121,15 @@ v8::Handle<v8::Value> strToUint16Str(const String& toSerialize);
 
 
 
+#define INLINE_DECODE_BOOL_ERROR(toConvert,whereError,whichArg,whereWriteTo) \
+    bool whereWriteTo; \
+    { \
+        String _errMsg = "In " #whereError "cannot convert " #whichArg " to bool";\
+        if (! decodeBool(toConvert,whereWriteTo,_errMsg))             \
+            return v8::ThrowException(v8::Exception::Error(v8::String::New(_errMsg.c_str(), _errMsg.length()))); \
+    }
+
+
 
 /**
    @param toConvert is a v8::Handle<v8::Value> that we are trying to read as a

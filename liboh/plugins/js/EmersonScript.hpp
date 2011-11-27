@@ -270,8 +270,6 @@ public:
 
     JSContextStruct* rootContext() const { return mContext; }
 
-    HostedObjectPtr mParent;
-
 /**
        Contexts are allowed to initiate http requests.  To do so, they should
        get a copy of each EmersonScript's httpPtr and make requests directly

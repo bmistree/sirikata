@@ -1043,6 +1043,27 @@ v8::Handle<v8::Value> commonImport(const v8::Arguments& args, bool isJS)
     return jsfake->struct_import(native_filename,isJS);
 }
 
+v8::Handle<v8::Value> root_asyncImport(const v8::Arguments& args)
+{
+    if (args.Length() != 3)
+        V8_EXCEPTION_CSTRING("Error in asyncImport.  Args: "   +
+            "<filename: string> <after: func or str to eval> " +
+            "<isJS: bool>");
+
+    INLINE_SYSTEM_CONV_ERROR(args.This(),asyncImport,this,jssystem);
+    INLINE_STR_CONV_ERROR(args[0],asyncImport,1,filenameToImportFrom);
+    INLINE_DECODE_BOOL_ERRROR(args[2],asyncImport,3,isJS);
+    
+    if (args[1]->IsFunction())
+        return jssystem->struct_asyncImport(filenameToImportFrom,args[1],isJS);
+
+
+    INLINE_STR_CONV_ERROR(args[1],asyncImport,2,toEval);
+
+    return jssystem->struct_asyncImort(filenameToimportFrom,args[1],isJS);
+}
+
+
 /**
    @return String corresponding to version number of Emerson.
  */

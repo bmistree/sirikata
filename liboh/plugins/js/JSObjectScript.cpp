@@ -962,7 +962,116 @@ void JSObjectScript::print(const String& str) {
 
 
 
+v8::Handle<v8::Value> JSObjectScript::asyncImport(
+    JSContextStruct* importingContext,const String& filename,
+    v8::Handle<v8::Value>& toEvalOrExec,bool isJS)
+{
+    mParent->context()->mainStrand->post(
+        std::tr1::bind(&JSObjectScript::asyncImportStrand,this,
+            importingContext->getContextID(),filename,toEvalOrExec,isJS));
 
+    
+    return v8::Undefined();
+}
+
+void JSObjectScritp::asyncImportStrand(uint32 contID, const String& filename,
+        v8::Handle<v8::Value>& toEvalOrExec,bool isJS)
+{
+    if (isStopped()) {
+        JSLOG(warn, "Ignoring import callback after shutdown request.");
+        return;
+    }
+
+    lkjs;
+
+    if (mContStructMap.find(contID) == mContStructMap.end())
+    {
+        JSLOG(error,"Context requesting import has been " +
+            "killed.  Ignoring import callback.");
+        return;
+    }
+
+    JSContextStruct jscont = mContStructMap[contID]->mContext;
+    if (jscont->isSuspended())
+    {
+        JSLOG(error, "Context requesting import has been "+
+            "suspended.  Ignoring import callback.");
+        return;
+    }
+
+    //push jscont onto stack.
+    mEvalContextStack.push(EvalContext(jscont));
+    boost::filesystem::path full_filename, full_base;
+    resolveImport(filename, &full_filename, &full_base);
+    bool noFile = false;
+    if (full_filename.empty())
+    {
+        JSLOG(error,"Ignoring request to import.  " +
+            "Filename "<<filename<<" does not exist");
+        noFile = true;
+    }
+
+    //setting up handle scope so that importResult can be assigned.
+    v8::HandleScope handle_scope;
+    v8::Context::Scope context_scope(jscont->mContext);
+    TryCatch try_catch;
+
+    
+    
+    v8::Handle<v8::Value> importResult = v8::Undefined();
+    //actually perform import if have file to import from
+    if (!noFile)
+        importResult = absoluteImport(full_filename,full_base,isJS);
+
+
+    //perform callback
+    preEvalOps();
+    if (toEvalOrExec->IsFunction())
+    {
+        String errorCondition = "file imported";
+        bool success = true;
+
+        if (noFile)
+        {
+            success = false;
+            errorCondition = "Could not find file named " + filename;
+        }
+
+        if (try_catch.HasCaught())
+        {
+            try_catch
+            void printException(v8::TryCatch& try_catch, EmersonLineMap* lineMap);
+            success = false;
+            lkjs;
+        }
+        
+        
+        v8::Handle<v8::Boolean> success = v8::Boolean::New(!noFile);
+        
+        v8::Handle<v8::String> successMessage;
+        if (noFile)
+            successMessage = v8::String::New("Error could not find file named " + filename);
+        else
+            successMessage = v8::String::New("File imported");
+            
+
+        lkjs;
+        invokeCallback()
+    }
+    else
+    {
+        lkjs;
+    }
+    postEvalOps();    
+    mEvalContextStack.pop();    
+    lkjs;
+    
+    
+    
+
+    v8::Handle<v8::Value> absoluteImport(const boost::filesystem::path& full_filename, const boost::filesystem::path& full_base_dir,bool isJS);
+    lkjs;
+lkjs;
 
 //takes in a name of a file to read from and execute all instructions within.
 //also takes in a context to do so in.  If this context is null, just use
@@ -1022,7 +1131,7 @@ void JSObjectScript::resolveImport(const String& filename, boost::filesystem::pa
     return;
 }
 
-
+lkjs;
 v8::Handle<v8::Value> JSObjectScript::absoluteImport(const boost::filesystem::path& full_filename, const boost::filesystem::path& full_base_dir,bool isJS)
 {
     if (mEvalContextStack.empty())

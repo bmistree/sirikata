@@ -421,6 +421,15 @@ v8::Handle<v8::Value>  JSContextStruct::struct_import(const String& toImportFrom
     return jsObjScript->import(toImportFrom,isJS);
 }
 
+v8::Handle<v8::Value> JSContextStruct::struct_asyncImport(
+        const String& toImportFrom,v8::Handle<v8::Value>& toEvalOrExec, bool isJS)
+{
+    return jsObjScript->asyncImport(this,toImportFrom,toEvalOrExec,isJS);
+}
+
+
+
+
 //string argument is the filename that we're trying to open and execute
 //contents of.
 v8::Handle<v8::Value>  JSContextStruct::struct_require(const String& toRequireFrom,bool isJS)

@@ -178,6 +178,18 @@ v8::Handle<v8::Value> JSSystemStruct::struct_import(const String& toImportFrom,b
     return associatedContext->struct_import(toImportFrom,isJS);
 }
 
+
+
+v8::Handle<v8::Value> JSSystemStruct::struct_asyncImport(
+    const String& toImportFrom,v8::Handle<v8::Value>& afterImport, bool isJS)
+{
+    if (!Capabilities::givesCap(mCapNum, Capabilities::IMPORT))
+        V8_EXCEPTION_CSTR("Error.  You do not have the " +
+            "capability to import.");
+
+    return associatedContext->struct_asyncImport(toImportFrom,afterImport,isJS);
+}
+
 v8::Handle<v8::Value> JSSystemStruct::struct_canImport()
 {
     return v8::Boolean::New(Capabilities::givesCap(mCapNum, Capabilities::IMPORT));

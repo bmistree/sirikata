@@ -156,6 +156,11 @@ struct JSContextStruct : public JSSuspendable, public Liveness
     //string argument is the filename that we're trying to open and execute
     //contents of.
     v8::Handle<v8::Value>  struct_import(const String& toImportFrom,bool isJS);
+
+    v8::Handle<v8::Value> struct_asyncImport(
+        const String& toImportFrom,v8::Handle<v8::Value>& toEvalOrExec, bool isJS);
+
+
     //string argument is the filename that we're trying to open and execute
     //contents of.
     v8::Handle<v8::Value>  struct_require(const String& toRequireFrom,bool isJS);

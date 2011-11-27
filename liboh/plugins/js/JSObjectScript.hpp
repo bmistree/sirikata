@@ -70,7 +70,7 @@ void printException(v8::TryCatch& try_catch);
 class SIRIKATA_SCRIPTING_JS_EXPORT JSObjectScript : public ObjectScript, public virtual Liveness
 {
 public:
-    JSObjectScript(JSObjectScriptManager* jMan, OH::Storage* storage, OH::PersistedObjectSet* persisted_set, const UUID& internal_id);
+    JSObjectScript(JSObjectScriptManager* jMan, OH::Storage* storage, OH::PersistedObjectSet* persisted_set, const UUID& internal_id,HostedPobjectPtr mParent);
     virtual ~JSObjectScript();
 
     v8::Handle<v8::Value> debug_fileWrite(const String& strToWrite,const String& filename);
@@ -101,6 +101,26 @@ public:
      */
     v8::Handle<v8::Value> import(const String& filename, bool isJS);
 
+
+    /**
+       @param {String} toImportFrom - the fully qualified path to read file from
+       for import.
+       
+       @param {v8::Value} toEvalOrExec - Either a v8 string or a v8 function.
+       If it's a function, when import is complete, will execute it.
+       If it's a string, will eval it.
+
+       @param {bool} isJS - true if importing a js file, false if importing
+       emerson file.
+     */
+    v8::Handle<v8::Value> asyncImport(
+        JSContextStruct* importingContext,
+        const String& filename, v8::Handle<v8::Value>& toEvalOrExec,bool isJS);
+
+    void asyncImportStrand(
+        uint32 contID, const String& filename,
+        v8::Handle<v8::Value>& toEvalOrExec,bool isJS);
+    
     /**
        Adds jscont to evalStack.  Imports shim files and evals toEval.
        Pops jscont after this.
@@ -340,6 +360,7 @@ protected:
     bool stopCalled;
 
 
+    HostedObjectPtr mParent;
 
   private:
     //should already be inside of a frame;

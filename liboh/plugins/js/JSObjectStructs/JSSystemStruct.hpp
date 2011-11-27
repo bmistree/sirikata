@@ -95,6 +95,23 @@ struct JSSystemStruct
     v8::Handle<v8::Value> struct_print(const String& msg);
     v8::Handle<v8::Value> struct_sendHome(const String& toSend);
     v8::Handle<v8::Value> struct_import(const String& toImportFrom,bool isJS);
+
+    /**
+       @param {String} toImportFrom - the fully qualified path to read file from
+       for import.
+       
+       @param {v8::Value} toEvalOrExec - Either a v8 string or a v8 function.
+       If it's a function, when import is complete, will execute it.
+       If it's a string, will eval it.
+
+       @param {bool} isJS - true if importing a js file, false if importing
+       emerson file.
+     */
+    v8::Handle<v8::Value> struct_asyncImport(
+        const String& toImportFrom,
+        v8::Handle<v8::Value>& toEvalOrExec,
+        bool isJS);
+    
     v8::Handle<v8::Value> struct_require(const String& toRequireFrom,bool isJS);
 
 
