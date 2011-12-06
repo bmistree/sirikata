@@ -67,7 +67,6 @@
 #include <boost/lexical_cast.hpp>
 #include "EmersonMessagingManager.hpp"
 #include "EmersonHttpManager.hpp"
-
 #include "JSObjects/JSInvokableUtil.hpp"
 
 using namespace v8;
@@ -413,8 +412,14 @@ void EmersonScript::iNotifyProximateHelper(
 
 JSInvokableObject::JSInvokableObjectInt* EmersonScript::runSimulation(const SpaceObjectReference& sporef, const String& simname)
 {
+    /**
+       FIXME: lkjs;
+       Call into runSimulation should either be in mainStrand, or take locks in hostedobject.
+     */
     EMERSCRIPT_SERIAL_CHECK();
-    TimeSteppedSimulation* sim = mParent->runSimulation(sporef,simname);
+    TimeSteppedSimulation* sim =
+        mParent->runSimulation(sporef,simname,mCtx->objStrand);
+    
     return new JSInvokableObject::JSInvokableObjectInt(sim);
 }
 

@@ -95,7 +95,9 @@ Network::IOService* HostedObject::getIOService()
 }
 
 
-TimeSteppedSimulation* HostedObject::runSimulation(const SpaceObjectReference& sporef, const String& simName)
+TimeSteppedSimulation* HostedObject::runSimulation(
+    const SpaceObjectReference& sporef, const String& simName,
+    Network::IOStrand* simStrand)
 {
     TimeSteppedSimulation* sim = NULL;
 
@@ -104,16 +106,18 @@ TimeSteppedSimulation* HostedObject::runSimulation(const SpaceObjectReference& s
     PresenceDataMap::iterator psd_it = mPresenceData.find(sporef);
     if (psd_it == mPresenceData.end())
     {
-        HO_LOG(error, "Error requesting to run a simulation for a presence that does not exist.");
+        HO_LOG(error, "Error requesting to run a "<<\
+            "simulation for a presence that does not exist.");
         return NULL;
     }
 
     PerPresenceData& pd =  *psd_it->second;
-    bool newSimListener = addSimListeners(pd,simName,sim);
-
+    bool newSimListener = addSimListeners(pd,simName,sim,simStrand);
+    
     if ((sim != NULL) && (newSimListener))
     {
         HO_LOG(detailed, "Adding simulation to context");
+//        lkjs;
         mContext->add(sim);
     }
     return sim;
@@ -457,15 +461,21 @@ bool HostedObject::connect(
 
 
 //returns true if sim gets an already-existing listener.  false otherwise
-bool HostedObject::addSimListeners(PerPresenceData& pd, const String& simName,TimeSteppedSimulation*& sim)
+bool HostedObject::addSimListeners(
+    PerPresenceData& pd, const String& simName,TimeSteppedSimulation*& sim,
+    Network::IOStrand* simStrand)
 {
-    if (pd.sims.find(simName) != pd.sims.end()) {
+    if (pd.sims.find(simName) != pd.sims.end())
+    {
         sim = pd.sims[simName];
         return false;
     }
-
+    
     HO_LOG(info,String("[OH] Initializing ") + simName);
-    sim = SimulationFactory::getSingleton().getConstructor ( simName ) ( mContext, getSharedPtr(), pd.id(), getObjectHost()->getSimOptions(simName));
+    sim = SimulationFactory::getSingleton().getConstructor ( simName ) (
+        mContext, getSharedPtr(), pd.id(),
+        getObjectHost()->getSimOptions(simName),simStrand);
+    
     if (!sim)
     {
         HO_LOG(error, "Unable to load " << simName << " plugin.");

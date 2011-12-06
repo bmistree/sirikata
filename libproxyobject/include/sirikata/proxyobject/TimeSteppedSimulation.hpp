@@ -43,7 +43,8 @@ namespace Sirikata {
 
 class TimeSteppedSimulation : public ConnectionEventListener, public PollingService, public Invokable {
 public:
-    TimeSteppedSimulation(Context* ctx, const Duration& rate, const String& name, bool accurate=false)
+    TimeSteppedSimulation(Context* ctx, const Duration& rate,
+        const String& name, Network::IOStrand* strand,bool accurate=false)
      : PollingService(ctx->mainStrand, rate, ctx, name, accurate)
     {
     }

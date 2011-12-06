@@ -37,17 +37,21 @@
 #include <sirikata/proxyobject/Defs.hpp>
 #include <sirikata/core/util/ListenerProvider.hpp>
 #include <sirikata/proxyobject/TimeSteppedSimulation.hpp>
+#include <sirikata/core/network/IOStrand.hpp>
+
 
 namespace Sirikata{
 
 ///Class to create graphics subsystems. FIXME: should this load a dll when a named factory is not found
 class SIRIKATA_PROXYOBJECT_EXPORT SimulationFactory
     : public AutoSingleton<SimulationFactory>,
-      public Factory4<TimeSteppedSimulation*,
+      public Factory5<TimeSteppedSimulation*,
                       Context*,
                       VWObjectPtr, // Object simulation is working within
                       const SpaceObjectReference&, // Presence the simulation is working within
-                      const String&> //options string for the graphics system
+                      const String&, //options string for the graphics system
+                      Network::IOStrand* sStrand> //strand that sim should do work
+
 {
 public:
     static SimulationFactory&getSingleton();

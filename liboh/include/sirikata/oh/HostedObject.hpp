@@ -177,7 +177,9 @@ public:
     ///makes a new objects with objectName startingLocation mesh and connect to some interesting space
     void initializeScript(const String& script_type, const String& args, const String& script);
 
-    bool addSimListeners(PerPresenceData& pd, const String& oh_sims,    TimeSteppedSimulation*& sim);
+    bool addSimListeners(
+        PerPresenceData& pd, const String& oh_sims,
+        TimeSteppedSimulation*& sim,Network::IOStrand* simStrand);
 
 
 
@@ -200,7 +202,9 @@ public:
 
     ObjectReference getObjReference(const SpaceID& space);
 
-    TimeSteppedSimulation* runSimulation(const SpaceObjectReference& sporef, const String& simName);
+    TimeSteppedSimulation* runSimulation(
+        const SpaceObjectReference& sporef, const String& simName,
+        Network::IOStrand* simStrand);
 
     bool getProxyObjectFrom(const SpaceObjectReference*   spVisTo, const SpaceObjectReference*   sporef, ProxyObjectPtr& p);
 

@@ -55,13 +55,14 @@ namespace Sirikata {
 namespace Graphics {
 
 
-OgreSystem::OgreSystem(Context* ctx)
+OgreSystem::OgreSystem(Context* ctx,Network::IOStrand* sStrand)
  : OgreRenderer(ctx),
    mOnReadyCallback(NULL),
    mOnResetReadyCallback(NULL),
    mPrimaryCamera(NULL),
    mOverlayCamera(NULL),
-   mReady(false)
+   mReady(false),
+   simStrand(sStrand)
 {
     increfcount();
     mCubeMap=NULL;
@@ -573,6 +574,7 @@ void OgreSystem::tickInputHandler(const Task::LocalTime& t) const {
         mMouseHandler->tick(t);
 }
 
+
 boost::any OgreSystem::invoke(vector<boost::any>& params)
 {
     // Decode the command. First argument is the "function name"
@@ -650,6 +652,8 @@ boost::any OgreSystem::invoke(vector<boost::any>& params)
     else
         return OgreRenderer::invoke(params);
 
+//lkjs;
+    
     return boost::any();
 }
 

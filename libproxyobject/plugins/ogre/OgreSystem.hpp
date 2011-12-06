@@ -73,7 +73,7 @@ class OgreSystem: public OgreRenderer, protected SessionEventListener, public Pr
     void destroyMouseHandler();
     void tickInputHandler(const Task::LocalTime& t) const;
 
-    OgreSystem(Context* ctx);
+    OgreSystem(Context* ctx,Network::IOStrand* sStrand);
     bool initialize(VWObjectPtr viewer, const SpaceObjectReference& presenceid, const String&options);
 
 
@@ -122,10 +122,11 @@ public:
         Context* ctx,
         VWObjectPtr obj,
         const SpaceObjectReference& presenceid,
-        const String& options
+        const String& options,
+        Network::IOStrand* sStrand
     )
     {
-        OgreSystem*os= new OgreSystem(ctx);
+        OgreSystem*os= new OgreSystem(ctx,sStrand);
         if (os->initialize(obj, presenceid, options))
             return os;
         delete os;
@@ -246,6 +247,7 @@ private:
     EntityMap mEntityMap;
     String currentMat;
     bool mReady;
+    Network::IOStrand* simStrand;
 };
 
 
