@@ -61,7 +61,9 @@ OgreSystem::OgreSystem(Context* ctx,Network::IOStrand* sStrand)
    mOnResetReadyCallback(NULL),
    mPrimaryCamera(NULL),
    mOverlayCamera(NULL),
-   mReady(false)
+   mReady(false),
+   initialized(false),
+   stopped(false)
 {
     increfcount();
     mCubeMap=NULL;
@@ -219,6 +221,7 @@ bool OgreSystem::initialize(VWObjectPtr viewer, const SpaceObjectReference& pres
     mat->getTechnique(0)->getPass(0)->setAmbient(0, 0, 0);
     mat->getTechnique(0)->getPass(0)->setSelfIllumination(0.25, 0.5, 0.25);
 
+    initialized = true;
     return true;
 }
 
@@ -284,17 +287,38 @@ OgreSystem::~OgreSystem() {
     destroyMouseHandler();
 }
 
-void OgreSystem::stop() {
+void OgreSystem::stop()
+{
+    while(! initialized){}
+    
+    //want to keep this on the main strand.
     if (mViewer) {
         ProxyManagerPtr proxyManager = mViewer->presence(mPresenceID);
         proxyManager->removeListener(this);
     }
 
     OgreRenderer::stop();
+    stopped = true;
 }
 
 void OgreSystem::onCreateProxy(ProxyObjectPtr p)
 {
+    simStrand->post(
+        std::tr1::bind(&OgreSystem::iOnCreateProxy,this,
+            livenessToken(), p,));
+}
+
+void OgreSystem::iOnCreateProxy(
+    Liveness::Token systemAlive, ProxyObjectPtr p)
+{
+    if (!systemAlive)
+        return;
+
+    if (stopped)
+        return;
+
+    while(!initialized){}
+    
     bool created = false;
 
     ProxyEntity* mesh = NULL;
@@ -331,6 +355,23 @@ void OgreSystem::onCreateProxy(ProxyObjectPtr p)
 
 void OgreSystem::onDestroyProxy(ProxyObjectPtr p)
 {
+    simStrand->post(
+        std::tr1::bind(&OgreSystem::iOnDestroyProxy,this,
+            livenessToken(), p));
+}
+
+void OgreSystem::iOnDestroyProxy(
+    Liveness::Token systemToken, ProxyObjectPtr p)
+{
+    if (!systemToken)
+        return;
+
+    if (stopped)
+        return;
+
+    while (!initialized){}
+        
+    
     mDownloadPlanner->removeObject(p);
     // FIXME don't delete here because we want to mask proximity
     // additions/removals that aren't due to actual connect/disconnect.
@@ -369,6 +410,8 @@ Entity* OgreSystem::rayTrace(const Vector3d &position,
     int&subent,
     int which, SpaceObjectReference ignore) const{
 
+    lkjs;
+    
     Ogre::Ray traceFrom(toOgre(position, getOffset()), toOgre(direction));
     return internalRayTrace(traceFrom,false,resultCount,returnResult,returnNormal, subent,NULL,false,which,ignore);
 }

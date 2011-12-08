@@ -100,6 +100,7 @@ class OgreSystem: public OgreRenderer, protected SessionEventListener, public Pr
     Mesh::VisualPtr mDefaultMesh;
 public:
 
+    //accessed through OgreSystemMouseHandler
     Camera *mPrimaryCamera;
     Camera* mOverlayCamera;
 
@@ -250,6 +251,8 @@ private:
     EntityMap mEntityMap;
     String currentMat;
     bool mReady;
+    bool initialized;
+    bool stopped;
 };
 
 
