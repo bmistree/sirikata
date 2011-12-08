@@ -50,7 +50,7 @@ class SIRIKATA_PROXYOBJECT_EXPORT SimulationFactory
                       VWObjectPtr, // Object simulation is working within
                       const SpaceObjectReference&, // Presence the simulation is working within
                       const String&, //options string for the graphics system
-                      Network::IOStrand* sStrand> //strand that sim should do work
+                      Network::IOStrand*> //strand that sim should do work
 
 {
 public:

@@ -111,13 +111,14 @@ int main(int argc, char** argv) {
 
     Network::IOService* ios = Network::IOServiceFactory::makeIOService();
     Network::IOStrand* iostrand = ios->createStrand();
-
+    Network::IOStrand* simstrand = ios->createStrand();
+    
     Trace::Trace* trace = new Trace::Trace("meshview.log");
     Time epoch = Timer::now();
 
     Context* ctx = new Context("MeshView", ios, iostrand, trace, epoch);
 
-    OgreRenderer* renderer = new OgreRenderer(ctx);
+    OgreRenderer* renderer = new OgreRenderer(ctx,simstrand);
     renderer->initialize("", false);
 
     MeshViewCamera* cam = new MeshViewCamera(renderer);
@@ -146,6 +147,7 @@ int main(int argc, char** argv) {
     delete trace;
 
     delete iostrand;
+    delete simstrand;
     Network::IOServiceFactory::destroyIOService(ios);
 
     return 0;

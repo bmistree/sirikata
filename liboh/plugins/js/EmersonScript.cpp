@@ -418,7 +418,8 @@ JSInvokableObject::JSInvokableObjectInt* EmersonScript::runSimulation(const Spac
      */
     EMERSCRIPT_SERIAL_CHECK();
     TimeSteppedSimulation* sim =
-        mParent->runSimulation(sporef,simname,mCtx->objStrand);
+        mParent->runSimulation(sporef,simname,
+            JSObjectScript::mCtx->objStrand);
     
     return new JSInvokableObject::JSInvokableObjectInt(sim);
 }

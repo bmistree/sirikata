@@ -239,6 +239,9 @@ public:
 
     ~OgreSystem();
 
+protected:
+    void iWindowResized(Ogre::RenderWindow* rw);
+    
 private:
     void instantiateAllObjects(ProxyManagerPtr pop);
     double clamp(const double& val);
@@ -247,7 +250,6 @@ private:
     EntityMap mEntityMap;
     String currentMat;
     bool mReady;
-    Network::IOStrand* simStrand;
 };
 
 

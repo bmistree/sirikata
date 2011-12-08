@@ -255,8 +255,8 @@ public:
 
 
 
-OgreRenderer::OgreRenderer(Context* ctx)
- : TimeSteppedSimulation(ctx, Duration::seconds(1.f/60.f), "Ogre Graphics", true),
+OgreRenderer::OgreRenderer(Context* ctx,Network::IOStrand* sStrand)
+ : TimeSteppedSimulation(ctx, Duration::seconds(1.f/60.f), "Ogre Graphics", sStrand,true),
    mContext(ctx),
    mQuitRequested(false),
    mQuitRequestHandled(false),
@@ -266,7 +266,10 @@ OgreRenderer::OgreRenderer(Context* ctx)
    mOnTickCallback(NULL),
    mModelParser( ModelsSystemFactory::getSingleton ().getConstructor ( "any" ) ( "" ) ),
    mDownloadPlanner(NULL),
-   mNextFrameScreenshotFile("")
+   mNextFrameScreenshotFile(""),
+   simStrand(sStrand),
+   stopped(false),
+   initialized(false)
 {
     try {
         // These have to be consistent with any other simulations -- e.g. the
@@ -514,6 +517,7 @@ bool OgreRenderer::initialize(const String& options, bool with_berkelium) {
 
     loadSystemLights();
 
+    initialized =true;
     return true;
 }
 
@@ -832,6 +836,23 @@ void OgreRenderer::postFrame(Task::LocalTime current, Duration frameTime) {
 }
 
 void OgreRenderer::poll() {
+
+    simStrand->post(
+        std::tr1::bind(&OgreRenderer::iPoll,this,
+            livenessToken()));
+}
+
+void OgreRenderer::iPoll(Liveness::Token rendererLive)
+{
+    if (!rendererLive)
+        return;
+
+    if (stopped)
+        return;
+
+    if (!initialized)
+        return;
+    
     Task::LocalTime curFrameTime(Task::LocalTime::now());
 
     Duration frameTime=curFrameTime-mLastFrameTime;
@@ -850,13 +871,38 @@ void OgreRenderer::poll() {
     }
 }
 
-void OgreRenderer::stop() {
+void OgreRenderer::stop()
+{
+    simStrand->post(
+        std::tr1::bind(&OgreRenderer::iStop,this,livenessToken()));
+}
+
+void OgreRenderer::iStop(Liveness::Token rendererLive)
+{
+    if (!rendererLive)
+        return;
+
+    if (!initialized)
+    {
+        simStrand->post(
+            std::tr1::bind(&OgreRenderer::iStop,this,livenessToken()));
+    }
+
+    
+    stopped = true;
     delete mParsingWork;
     TimeSteppedSimulation::stop();
 }
 
+
 // Invokable Interface
-boost::any OgreRenderer::invoke(std::vector<boost::any>& params) {
+//should be called internal to simStrand
+boost::any OgreRenderer::invoke(std::vector<boost::any>& params)
+{
+    //busy wait until actually am initialized
+    while (!initialized)
+    {}
+    
     // Decode the command. First argument is the "function name"
     if (params.empty() || !Invokable::anyIsString(params[0]))
         return boost::any();
@@ -906,60 +952,165 @@ void OgreRenderer::injectWindowResized(uint32 w, uint32 h) {
     windowResized(mRenderWindow);
 }
 
-void OgreRenderer::windowResized(Ogre::RenderWindow *rw) {
-    SILOG(ogre,insane,"Ogre resized window: " << rw->getWidth() << "x" << rw->getHeight());
+void OgreRenderer::windowResized(Ogre::RenderWindow *rw)
+{
+    /**
+       FIXME: assuming that rw will still be alive after post.
+       lkjs;
+     */
+    simStrand->post(
+        std::tr1::bind(&OgreRenderer::iWindowResized,this,
+            rw,livenessToken()));
+}
 
+void OgreRenderer::iWindowResized(
+    Ogre::RenderWindow* rw, Liveness::Token rendererAlive)
+{
+    if (! rendererAlive)
+        return;
+
+    while (!initialized)
+    {}
+    
+    SILOG(ogre,insane,"Ogre resized window: " << rw->getWidth() << "x" << rw->getHeight());
     for(CameraSet::iterator cam_it = mAttachedCameras.begin(); cam_it != mAttachedCameras.end(); cam_it++)
         (*cam_it)->windowResized();
 }
 
-void OgreRenderer::windowFocusChange(Ogre::RenderWindow *rw) {
+void OgreRenderer::windowFocusChange(Ogre::RenderWindow *rw)
+{
+    /**
+       FIXME: assuming that rw will still be alive after post.
+       lkjs;
+     */
+    simStrand->post(
+        std::tr1::bind(&OgreRenderer::iWindowFocusChange,this,
+            livenessToken(),rw));
+}
+
+void OgreRenderer::iWindowFocusChange(
+    Liveness::Token rendererAlive,Ogre::RenderWindow*rw)
+{
+    if (! rendererAlive)
+        return;
+
+    while(!initialized)
+    {}
+    
     mInputManager->windowFocusChange();
 }
 
-float32 OgreRenderer::nearPlane() {
+float32 OgreRenderer::nearPlane()
+{
+    while(!initialized){}
+    
     return mOptions->referenceOption("nearplane")->as<float32>();
 }
 
-float32 OgreRenderer::farPlane() {
+float32 OgreRenderer::farPlane()
+{
+    while(!initialized){}
     return mOptions->referenceOption("farplane")->as<float32>();
 }
 
-float32 OgreRenderer::parallaxSteps() {
+float32 OgreRenderer::parallaxSteps()
+{
+    while(!initialized){}
     return mOptions->referenceOption("parallax-steps")->as<float32>();
 }
 
-int32 OgreRenderer::parallaxShadowSteps() {
+int32 OgreRenderer::parallaxShadowSteps()
+{
+    while(!initialized){}
     return mOptions->referenceOption("parallax-shadow-steps")->as<int>();
 }
 
-void OgreRenderer::attachCamera(const String &renderTargetName, Camera* entity) {
+//should only be called from within simStrand
+void OgreRenderer::attachCamera(const String &renderTargetName, Camera* entity)
+{
+    while(!initialized){}
     mDownloadPlanner->setCamera(entity);
     mAttachedCameras.insert(entity);
 }
 
-void OgreRenderer::detachCamera(Camera* entity) {
+//should only be called from within simStrand
+void OgreRenderer::detachCamera(Camera* entity)
+{
+    while(!initialized){}
     if (mAttachedCameras.find(entity) == mAttachedCameras.end()) return;
     mAttachedCameras.erase(entity);
 }
 
-void OgreRenderer::addObject(Entity* ent, const Transfer::URI& mesh) {
+void OgreRenderer::addObject(Entity* ent, const Transfer::URI& mesh)
+{
+    /**
+       FIXME:
+       lkjs
+       may want a liveness token for entity as well.
+     */
+    simStrand->post(
+        std::tr1::bind(&OgreRenderer::iAddObject,this,
+            livenessToken(),ent,mesh));
+}
+
+
+void OgreRenderer::iAddObject(
+    Liveness::Token rendererAlive, Entity* ent,const Transfer::URI& mesh)
+{
+    if (!rendererAlive)
+        return;
+    while(!initialized){}
+    
     mDownloadPlanner->addNewObject(ent, mesh);
 }
 
-void OgreRenderer::removeObject(Entity* ent) {
+void OgreRenderer::removeObject(Entity* ent)
+{
+    /**
+       FIXME:
+       lkjs;
+       may want a liveness token for entity as well.
+     */
+    simStrand->post(
+        std::tr1::bind(&OgreRenderer::iRemoveObject,this,
+            livenessToken(),ent));
+}
+
+void OgreRenderer::iRemoveObject(
+    Liveness::Token rendererAlive,Entity* ent)
+{
+    if (! rendererAlive)
+        return;
+
+    while (!initialized){}
+        
     mDownloadPlanner->removeObject(ent);
 }
 
-void OgreRenderer::parseMesh(const Transfer::RemoteFileMetadata& metadata, const Transfer::Fingerprint& fp, Transfer::DenseDataPtr data, ParseMeshCallback cb) {
+void OgreRenderer::parseMesh(const Transfer::RemoteFileMetadata& metadata, const Transfer::Fingerprint& fp, Transfer::DenseDataPtr data, ParseMeshCallback cb)
+{
+    while(!initialized){}
+    
     mParsingIOService->post(
-        std::tr1::bind(&OgreRenderer::parseMeshWork, this, metadata, fp, data, cb)
+        std::tr1::bind(&OgreRenderer::parseMeshWork, this,
+            metadata,livenessToken(), fp, data, cb)
     );
 }
 
-void OgreRenderer::parseMeshWork(const Transfer::RemoteFileMetadata& metadata, const Transfer::Fingerprint& fp, Transfer::DenseDataPtr data, ParseMeshCallback cb) {
+void OgreRenderer::parseMeshWork(
+    const Transfer::RemoteFileMetadata& metadata,
+    Liveness::Token rendererAlive,const Transfer::Fingerprint& fp,
+    Transfer::DenseDataPtr data, ParseMeshCallback cb)
+{
+    if (!rendererAlive)
+        return;
+    
+    if (stopped)
+        return;
+
+        
     Mesh::VisualPtr parsed = parseMeshWorkSync(metadata, fp, data);
-    mContext->mainStrand->post(std::tr1::bind(cb, parsed));
+    simStrand->post(std::tr1::bind(cb, parsed));
 }
 
 Mesh::VisualPtr OgreRenderer::parseMeshWorkSync(const Transfer::RemoteFileMetadata& metadata, const Transfer::Fingerprint& fp, Transfer::DenseDataPtr data) {
@@ -974,12 +1125,17 @@ Mesh::VisualPtr OgreRenderer::parseMeshWorkSync(const Transfer::RemoteFileMetada
     return parsed;
 }
 
-void OgreRenderer::screenshot(const String& filename) {
+void OgreRenderer::screenshot(const String& filename)
+{
+    while(!initialized){}
+        
     if (mRenderTarget != NULL)
         mRenderTarget->writeContentsToFile(filename);
 }
 
-void OgreRenderer::screenshotNextFrame(const String& filename) {
+void OgreRenderer::screenshotNextFrame(const String& filename)
+{
+    while(!initialized){}
     mNextFrameScreenshotFile = filename;
 }
 

@@ -41,6 +41,8 @@
 #include <sirikata/core/transfer/TransferMediator.hpp>
 #include <sirikata/proxyobject/TimeSteppedSimulation.hpp>
 #include <OgreWindowEventUtilities.h>
+#include <sirikata/core/util/Liveness.hpp>
+#include <sirikata/core/util/SerializationCheck.hpp>
 
 namespace Sirikata {
 
@@ -65,9 +67,12 @@ class ResourceDownloadPlanner;
 using Input::SDLInputManager;
 
 /** Represents a SQLite database connection. */
-class SIRIKATA_OGRE_EXPORT OgreRenderer : public TimeSteppedSimulation, public Ogre::WindowEventListener {
+class SIRIKATA_OGRE_EXPORT OgreRenderer : public TimeSteppedSimulation,
+                                          public Ogre::WindowEventListener,
+                                          public virtual Liveness
+{
 public:
-    OgreRenderer(Context* ctx);
+    OgreRenderer(Context* ctx,Network::IOStrand* sStrand);
     virtual ~OgreRenderer();
 
     virtual bool initialize(const String& options, bool with_berkelium = true);
@@ -178,8 +183,22 @@ public:
     ///all the things that should happen once the frame finishes
     virtual void postFrame(Task::LocalTime, Duration);
 
-
-    void parseMeshWork(const Transfer::RemoteFileMetadata& metadata, const Transfer::Fingerprint& fp, Transfer::DenseDataPtr data, ParseMeshCallback cb);
+    void iWindowResized(Ogre::RenderWindow* rw,Liveness::Token rendererAlive);
+    void iStop(Liveness::Token rendererLive);
+    void iWindowFocusChange(
+        Liveness::Token rendererAlive,Ogre::RenderWindow*rw);
+    void iAddObject(
+        Liveness::Token rendererAlive, Entity* ent,const Transfer::URI& mesh);
+    void iRemoveObject(
+        Liveness::Token rendererAlive,Entity* ent);
+    void iPoll(Liveness::Token rendererLive);
+    
+    
+    void parseMeshWork(
+        const Transfer::RemoteFileMetadata& metadata,
+        Liveness::Token rendererAlive,const Transfer::Fingerprint& fp,
+        Transfer::DenseDataPtr data, ParseMeshCallback cb);
+    
     Mesh::VisualPtr parseMeshWorkSync(const Transfer::RemoteFileMetadata& metadata, const Transfer::Fingerprint& fp, Transfer::DenseDataPtr data);
 
 
@@ -265,6 +284,8 @@ public:
     // To simplify taking screenshots after a specific event has occurred, we
     // allow them to be taken on the next frame.
     String mNextFrameScreenshotFile;
+    Network::IOStrand* simStrand;
+    bool stopped,initialized;
 };
 
 } // namespace Graphics

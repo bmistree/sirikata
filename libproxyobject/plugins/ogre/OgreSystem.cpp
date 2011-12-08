@@ -56,13 +56,12 @@ namespace Graphics {
 
 
 OgreSystem::OgreSystem(Context* ctx,Network::IOStrand* sStrand)
- : OgreRenderer(ctx),
+ : OgreRenderer(ctx,sStrand),
    mOnReadyCallback(NULL),
    mOnResetReadyCallback(NULL),
    mPrimaryCamera(NULL),
    mOverlayCamera(NULL),
-   mReady(false),
-   simStrand(sStrand)
+   mReady(false)
 {
     increfcount();
     mCubeMap=NULL;
@@ -246,8 +245,20 @@ void OgreSystem::handleUpdateUIViewport(int32 left, int32 top, int32 right, int3
         mPrimaryCamera->setViewportDimensions(left, top, right, bottom);
 }
 
-void OgreSystem::windowResized(Ogre::RenderWindow *rw) {
-    OgreRenderer::windowResized(rw);
+void OgreSystem::windowResized(Ogre::RenderWindow *rw)
+{
+    /**
+       FIXME: assuming that rw is alive when reach windowResized
+       lkjs;
+     */
+    simStrand->post(
+        std::tr1::bind(&OgreSystem::iWindowResized,this,
+            rw));
+}
+
+void OgreSystem::iWindowResized(Ogre::RenderWindow* rw)
+{
+    OgreRenderer::iWindowResized(rw,livenessToken());
     mMouseHandler->windowResized(rw->getWidth(), rw->getHeight());
 }
 

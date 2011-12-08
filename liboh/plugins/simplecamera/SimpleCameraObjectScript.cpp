@@ -99,7 +99,10 @@ void SimpleCameraObjectScript::onConnected(SessionEventProviderPtr from, const S
     mID = name;
     mSelfProxy = mParent->self(mID);
 
-    mGraphics = mParent->runSimulation(name, "ogregraphics");
+
+    mGraphics = mParent->runSimulation(
+        name, "ogregraphics",context()->ioService->createStrand());
+    
     Invokable::Array args;
     args.push_back( Invokable::asAny((String)"setInputHandler") );
     args.push_back( Invokable::asAny((Invokable*)this) );
