@@ -42,7 +42,7 @@ if(system == undefined)
   system = new Object();
 }
 
-
+lkjs;
 
 /**@ignore
  Each presence entry object manages the proximity result set for a presence.
@@ -209,10 +209,6 @@ function PresenceEntry(sporef, presObj)
      
      system.__NULL_TOKEN__ = 'null';
 
-     system.getAllData = function()
-     {
-         return system._selfMap;
-     };
 
      /**
       @param {string} toChangeTo  The sporef of the presence that we want to change self to.
@@ -1307,6 +1303,8 @@ function PresenceEntry(sporef, presObj)
       */
      system.getProxSet = function (presToGetSetFor)
      {
+lkjs;
+         
          var key = presToGetSetFor.toString();
          if (!(key in system._selfMap))
              throw new Error('Error in system.getProxSet.  Do not have a presence with the identifier specified.');
@@ -1314,7 +1312,7 @@ function PresenceEntry(sporef, presObj)
          return system._selfMap[key].getProxResultSet();
      };
 
-
+lkjs;
      
      /**
       @param visObj is a visible object that has now moved into presence's result set
@@ -1324,6 +1322,7 @@ function PresenceEntry(sporef, presObj)
       */
      var proxAddedManager = function(visObj, presVisTo)
      {
+         lkjs;
          if (presVisTo.toString() in system._selfMap)
          {
              //reset self;
@@ -1343,6 +1342,7 @@ function PresenceEntry(sporef, presObj)
       */
      var proxRemovedManager = function(visObj, presVisTo)
      {
+         lkjs;
          if (presVisTo.toString() in system._selfMap)
          {
              //reset self;
