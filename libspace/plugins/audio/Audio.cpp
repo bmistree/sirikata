@@ -34,6 +34,7 @@ using std::tr1::placeholders::_3;
 Audio::Audio(SpaceContext* context)
  : SpaceModule(context)
 {
+    AUDIO_LOG(debug,"Constructing space audio module");
     //whenever created a new port, put 
     mDelegateODPService = new ODP::DelegateService(
         std::tr1::bind(

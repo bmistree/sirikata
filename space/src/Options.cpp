@@ -41,7 +41,7 @@ void InitSpaceOptions() {
 
         .addOption(new OptionValue(OPT_CONFIG_FILE,"space.cfg",Sirikata::OptionValueType<String>(),"Configuration file to load."))
 
-        .addOption(new OptionValue(OPT_SPACE_PLUGINS,"weight-exp,weight-sqr,weight-const,space-null,space-local,space-standard,space-prox,colladamodels,mesh-billboard,common-filters,space-bulletphysics,space-environment,space-redis",Sirikata::OptionValueType<String>(),"Plugin list to load."))
+        .addOption(new OptionValue(OPT_SPACE_PLUGINS,"weight-exp,weight-sqr,weight-const,space-null,space-local,space-standard,space-prox,colladamodels,mesh-billboard,common-filters,space-bulletphysics,space-environment,space-redis,space-audio",Sirikata::OptionValueType<String>(),"Plugin list to load."))
         .addOption(new OptionValue(OPT_SPACE_EXTRA_PLUGINS,"",Sirikata::OptionValueType<String>(),"Extra list of plugins to load. Useful for using existing defaults as well as some additional plugins."))
 
         .addOption(new OptionValue("spacestreamlib","tcpsst",Sirikata::OptionValueType<String>(),"Which library to use to communicate with the object host"))
@@ -93,7 +93,9 @@ void InitSpaceOptions() {
 
       .addOption(new OptionValue("route-object-message-buffer", "64", Sirikata::OptionValueType<size_t>(), "size of the buffer between network and main strand for space server message routing"))
 
-        .addOption(new OptionValue(OPT_MODULES, "environment", Sirikata::OptionValueType< std::vector<String> >(), "Additional SpaceModules to load"))
+        .addOption(new OptionValue(OPT_MODULES, "environment,audio", Sirikata::OptionValueType< std::vector<String> >(), "Additional SpaceModules to load"))
+
+        
 
 
         .addOption(new OptionValue(OPT_AGGMGR_HOSTNAME, "", Sirikata::OptionValueType<String>(), "AggregateManager upload hostname"))
