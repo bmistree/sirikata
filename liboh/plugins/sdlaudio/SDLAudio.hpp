@@ -11,20 +11,23 @@
 #include <sirikata/core/transfer/ResourceDownloadTask.hpp>
 #include <sirikata/core/util/Liveness.hpp>
 
+#include "SoundCommon.hpp"
+#include "URLFullSoundLoader.hpp"
+#include "FFmpegAudioStream.hpp"
+
 namespace Sirikata {
 namespace SDL {
 
-class FFmpegAudioStream;
-typedef std::tr1::shared_ptr<FFmpegAudioStream> FFmpegAudioStreamPtr;
+#define CLIP_HANDLE_NULL  0
+
 
 class AudioSimulation : public Simulation,
                         public Liveness
 
 {
 public:
-    AudioSimulation(Context* ctx, Network::IOStrandPtr aStrand);
+    AudioSimulation(Context* ctx, Network::IOStrandPtr aStrand, const SpaceObjectReference& sporef);
     virtual ~AudioSimulation();
-
 
     // Service Interface
     virtual void start();
@@ -32,8 +35,6 @@ public:
 
     // Invokable Interface
     virtual boost::any invoke(std::vector<boost::any>& params);
-
-
 
     // Mixing interface, public for the mixing callback function
     void mix(uint8* raw_stream, int32 len);
@@ -66,13 +67,15 @@ private:
     bool mInitializedAudio;
     bool mOpenedAudio;
 
-    typedef uint32 ClipHandle;
+    SpaceObjectReference mSporef;
+
+    //FIXME:
+    //make this an atomic int?
     ClipHandle mClipHandleSource;
 
+    
     // Mixing callbacks come from SDL's thread, download handlers come from
     // transfer thread, so we need to be careful about managing access.
-    typedef boost::mutex Mutex;
-    typedef boost::unique_lock<Mutex> Lock;
     Mutex mMutex;
 
     Transfer::TransferPoolPtr mTransferPool;
@@ -84,17 +87,36 @@ private:
     DownloadTaskMap mDownloads;
 
     // ClipHandles are used to uniquely identify playing clips
-    struct Clip {
-        FFmpegAudioStreamPtr stream;
-        bool paused;
-        float32 volume;
-        bool loop;
-    };
-    typedef std::map<ClipHandle, Clip> ClipMap;
     ClipMap mClips;
 
     bool mPlaying;
+
+    //handling invokable input functions
+
+    URLFullSoundLoaderManager* mURLFullSoundLoaderManager;
+    
+    /**
+       If get a request to download full audio, and then play it, downloads file
+       from URL and then issues callback to add file to streams to play.
+     */
+    boost::any startDownloadAndPlayFromURL(std::vector<boost::any>& params);
+
+    /**
+       Called from within audiostrand.  Starts playing file that had been
+       downloaded.
+     */
+    void playDownloadFinished(
+        FullSoundLoaderStatus status,Transfer::DenseDataPtr response,
+        std::set<ClipHandle> waitingClips,Liveness::Token lt);
+
+    
+
+    //insures that mClipHandleSource will never return clip handle null
+    ClipHandle incrementClipId();
+        
 };
+
+
 
 } //namespace SDL
 } //namespace Sirikata

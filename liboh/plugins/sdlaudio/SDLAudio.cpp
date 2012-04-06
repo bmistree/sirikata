@@ -15,7 +15,6 @@
 #include "FFmpegStream.hpp"
 #include "FFmpegAudioStream.hpp"
 
-#define AUDIO_LOG(lvl, msg) SILOG(sdl-audio, lvl, msg)
 
 namespace Sirikata {
 namespace SDL {
@@ -35,18 +34,28 @@ extern void mixaudio(void* _sim, Uint8* raw_stream, int raw_len) {
 
 }
 
-AudioSimulation::AudioSimulation(Context* ctx,Network::IOStrandPtr ptr)
+AudioSimulation::AudioSimulation(
+    Context* ctx,Network::IOStrandPtr ptr,const SpaceObjectReference& sporef)
  : audioStrand(ptr),
    mContext(ctx),
    mInitializedAudio(false),
    mOpenedAudio(false),
+   mSporef(sporef),
    mClipHandleSource(0),
-   mPlaying(false)
-{}
+   mPlaying(false),
+   mURLFullSoundLoaderManager(NULL)
+{
+    
+}
 
 
 AudioSimulation::~AudioSimulation()
 {
+    /**
+       FIXME: delete mURLFullSoundLoaderManger if not null;
+     */
+    delete mURLFullSoundLoaderManager;
+    
     Liveness::letDie();
 }
 
@@ -69,7 +78,7 @@ void AudioSimulation::iStart(Liveness::Token lt)
         return;
     }
 
-    AUDIO_LOG(detailed, "Starting SDLAudio");
+    AUDIO_LOG(debug, "Starting SDLAudio");
 
     if (SDL::InitializeSubsystem(SDL::Subsystem::Audio) != 0)
         return;
@@ -96,8 +105,20 @@ void AudioSimulation::iStart(Liveness::Token lt)
 
     FFmpegGlue::getSingleton().ref();
 
+
+    //to play clips from urls
     mTransferPool = Transfer::TransferMediator::getSingleton().registerClient<Transfer::AggregatedTransferPool>("SDLAudio");
+    
+    mURLFullSoundLoaderManager =
+        new URLFullSoundLoaderManager(
+            &mClips,&mMutex,mTransferPool,audioStrand,
+            audioStrand->wrap(
+                std::tr1::bind(&AudioSimulation::playDownloadFinished,this,
+                    _1, _2, _3,livenessToken())));
+
 }
+
+
 
 bool AudioSimulation::ready() const {
     return (mInitializedAudio && mOpenedAudio && mTransferPool);
@@ -141,7 +162,10 @@ void AudioSimulation::iStop(Liveness::Token lt)
     mInitializedAudio = false;
 }
 
-boost::any AudioSimulation::invoke(std::vector<boost::any>& params) {
+
+
+boost::any AudioSimulation::invoke(std::vector<boost::any>& params)
+{
     // Decode the command. First argument is the "function name"
     if (params.empty() || !Invokable::anyIsString(params[0]))
         return boost::any();
@@ -149,61 +173,8 @@ boost::any AudioSimulation::invoke(std::vector<boost::any>& params) {
     std::string name = Invokable::anyAsString(params[0]);
     AUDIO_LOG(detailed, "Invoking the function " << name);
 
-    if (name == "play") {
-        // Ignore if we didn't initialize properly
-        if (!ready())
-            return boost::any();
-
-        // URL
-        if (params.size() < 2 || !Invokable::anyIsString(params[1]))
-            return boost::any();
-        String sound_url_str = Invokable::anyAsString(params[1]);
-        Transfer::URI sound_url(sound_url_str);
-        if (sound_url.empty()) return boost::any();
-        // Volume
-        float32 volume = 1.f;
-        if (params.size() >= 3 && Invokable::anyIsNumeric(params[2]))
-            volume = (float32)Invokable::anyAsNumeric(params[2]);
-        // Looping
-        bool looped = false;
-        if (params.size() >= 4 && Invokable::anyIsBoolean(params[3]))
-            looped = Invokable::anyAsBoolean(params[3]);
-
-        Lock lck(mMutex);
-
-        ClipHandle id = mClipHandleSource++;
-        AUDIO_LOG(detailed, "Play request for " << sound_url.toString() << " assigned ID " << id);
-        // Save info immediately so we don't have to track it through download
-        // process and so we can make adjustments while it's still downloading.
-        Clip clip;
-        clip.stream.reset();
-        clip.paused = false;
-        clip.volume = volume;
-        clip.loop = looped;
-        mClips[id] = clip;
-
-        DownloadTaskMap::iterator task_it = mDownloads.find(sound_url);
-        // If we're already working on it, we don't need to do
-        // anything.  TODO(ewencp) actually we should track the number
-        // of requests and play it that many times when it completes...
-        if (task_it != mDownloads.end()) {
-            AUDIO_LOG(insane, "Already downloading " << sound_url.toString());
-            task_it->second.waiting.insert(id);
-            return Invokable::asAny(id);
-        }
-
-        AUDIO_LOG(insane, "Issuing download request for " << sound_url.toString());
-        Transfer::ResourceDownloadTaskPtr dl = Transfer::ResourceDownloadTask::construct(
-            sound_url, mTransferPool,
-            1.0,
-            std::tr1::bind(&AudioSimulation::handleFinishedDownload, this, _1, _2, _3)
-        );
-        mDownloads[sound_url].task = dl;
-        mDownloads[sound_url].waiting.insert(id);
-        dl->start();
-
-        return Invokable::asAny(id);
-    }
+    if (name == "play") 
+        return startDownloadAndPlayFromURL(params);
     else if (name == "stop") {
         if (params.size() < 2 || !Invokable::anyIsNumeric(params[1]))
             return boost::any();
@@ -211,7 +182,7 @@ boost::any AudioSimulation::invoke(std::vector<boost::any>& params) {
 
         AUDIO_LOG(detailed, "Stop request for ID " << id);
 
-        Lock lck(mMutex);
+        Mutex::scoped_lock lck(mMutex);
 
         // Clear out from playing streams
         ClipMap::iterator clip_it = mClips.find(id);
@@ -239,7 +210,7 @@ boost::any AudioSimulation::invoke(std::vector<boost::any>& params) {
             return boost::any();
         float32 volume = (float32)Invokable::anyAsNumeric(params[2]);
 
-        Lock lck(mMutex);
+        Mutex::scoped_lock(mMutex);
         if (mClips.find(id) == mClips.end()) return Invokable::asAny(false);
         mClips[id].volume = volume;
 
@@ -253,7 +224,7 @@ boost::any AudioSimulation::invoke(std::vector<boost::any>& params) {
         bool paused = (name == "pause");
         AUDIO_LOG(detailed, name << " request for ID " << id);
 
-        Lock lck(mMutex);
+        Mutex::scoped_lock(mMutex);
 
         ClipMap::iterator clip_it = mClips.find(id);
         if (clip_it != mClips.end()) {
@@ -273,11 +244,16 @@ boost::any AudioSimulation::invoke(std::vector<boost::any>& params) {
             return boost::any();
         bool looped = Invokable::anyAsBoolean(params[2]);
 
-        Lock lck(mMutex);
+        Mutex::scoped_lock(mMutex);
         if (mClips.find(id) == mClips.end()) return Invokable::asAny(false);
         mClips[id].loop = looped;
 
         return Invokable::asAny(true);
+    }
+    else if (name == "sendSound")
+    {
+        AUDIO_LOG(error,"Error, have not permitted send sound functionality yet.");
+        //return sendSound(params);
     }
     else {
         AUDIO_LOG(warn, "Function " << name << " was invoked but this function was not found.");
@@ -286,76 +262,85 @@ boost::any AudioSimulation::invoke(std::vector<boost::any>& params) {
     return boost::any();
 }
 
-void AudioSimulation::handleFinishedDownload(
-    Transfer::ResourceDownloadTaskPtr taskptr,
-    Transfer::TransferRequestPtr request,
-    Transfer::DenseDataPtr response)
+
+
+/**
+   gets us to send a local sound file, bit-by-bit to the space server,
+   which will mix it and send sound to listeners.
+
+   @param params
+
+   params[0] ---> toString should give "sendSound"
+
+   params[1] ---> toString (for now) should give local file to send in pieces to
+   the space.
+
+   Returns true if works, boost::any() otherwise.
+ */
+boost::any sendSound(std::vector<boost::any>& params)
 {
-    audioStrand->post(
-        std::tr1::bind(&AudioSimulation::iHandleFinishedDownload,this,
-            livenessToken(),taskptr,request,response),
-        "AudioSimulation::iHandleFinishedDownload"
-    );
+
+    if (params.size() != 2)
+        return boost::any();
+
+    String name = Invokable::anyAsString(params[0]);
+    if (name != "sendSound")
+        return boost::any();
+
+    String filePath = Invokable::anyAsString(params[1]);
+    AUDIO_LOG(debug,"Sending sound from local file "<< filePath<<" to space");
+    //not finished yet
+    assert(false);
+
+    return Invokable::asAny(true);
 }
 
-void AudioSimulation::iHandleFinishedDownload(
-    Liveness::Token lt,
-    Transfer::ResourceDownloadTaskPtr taskptr,
-    Transfer::TransferRequestPtr request,
-    Transfer::DenseDataPtr response)
+
+
+void AudioSimulation::playDownloadFinished(
+    FullSoundLoaderStatus status,Transfer::DenseDataPtr response,
+    std::set<ClipHandle> waitingClips,Liveness::Token lt)
 {
-    if (!lt) return;
+    if (status == FULL_SOUND_LOAD_FAIL)
+        return;
+    
     Liveness::Lock locked(lt);
     if (!locked)
     {
-        AUDIO_LOG(warn, "Aborting finished download: "<<\
-            "audio sim no longer live.");
+        AUDIO_LOG(detailed, "Not playing download because audio simulation canceled");
         return;
     }
 
+    AUDIO_LOG(debug,"Request to play clip after download finished");
+    
+    Mutex::scoped_lock lock(mMutex);
 
-    Lock lck(mMutex);
-
-    Transfer::MetadataRequestPtr uriRequest = std::tr1::dynamic_pointer_cast<Transfer::MetadataRequest>(request);
-    assert(uriRequest && "Got unexpected TransferRequest subclass.");
-    const Transfer::URI& sound_url = uriRequest->getURI();
-
-    // We may have stopped the simulation and then gotten the callback. Ignore
-    // in this case.
-    if (mDownloads.find(sound_url) == mDownloads.end()) return;
-
-    // Otherwise remove the record, saving the waiting clips
-    std::set<ClipHandle> waiting = mDownloads[sound_url].waiting;
-    mDownloads.erase(sound_url);
-
-    // If the download failed, just log it
-    if (!response) {
-        AUDIO_LOG(error, "Failed to download " << sound_url << " sound file.");
-        return;
-    }
-
-    if (response->size() == 0) {
-        AUDIO_LOG(error, "Got zero sized audio file download for " << sound_url);
-        return;
-    }
-
-    AUDIO_LOG(detailed, "Finished download for audio file " << sound_url << ": " << response->size() << " bytes");
-
-    for(std::set<ClipHandle>::iterator id_it = waiting.begin(); id_it != waiting.end(); id_it++) {
-        FFmpegMemoryProtocol* dataSource = new FFmpegMemoryProtocol(sound_url.toString(), response);
-        FFmpegStreamPtr stream(FFmpegStream::construct<FFmpegStream>(static_cast<FFmpegURLProtocol*>(dataSource)));
-        if (stream->numAudioStreams() == 0) {
-            AUDIO_LOG(error, "Found zero audio streams in " << sound_url << ", ignoring");
-            return;
-        }
-        if (stream->numAudioStreams() > 1)
-            AUDIO_LOG(detailed, "Found more than one audio stream in " << sound_url << ", only playing first");
-        FFmpegAudioStreamPtr audio_stream = stream->getAudioStream(0, 2);
-
+    //start playing the selected clips.
+    for(std::set<ClipHandle>::iterator id_it = waitingClips.begin();
+        id_it != waitingClips.end(); id_it++)
+    {
         // Might have been removed already
         if (mClips.find(*id_it) == mClips.end()) continue;
 
+
+        FFmpegMemoryProtocol* dataSource =
+            new FFmpegMemoryProtocol("temporaryWebName", response);
+        
+        FFmpegStreamPtr stream(FFmpegStream::construct<FFmpegStream>(
+                static_cast<FFmpegURLProtocol*>(dataSource)));
+        
+        if (stream->numAudioStreams() == 0) {
+            AUDIO_LOG(error, "Found zero audio streams, ignoring");
+            return;
+        }
+        if (stream->numAudioStreams() > 1)
+            AUDIO_LOG(detailed, "Found more than one audio stream, only playing first");
+        
+        FFmpegAudioStreamPtr audio_stream = stream->getAudioStream(0, 2);
         mClips[*id_it].stream = audio_stream;
+
+        AUDIO_LOG(debug,"Correctly set stream");
+        
     }
 
     // Enable playback if we didn't have any active streams before
@@ -364,6 +349,53 @@ void AudioSimulation::iHandleFinishedDownload(
         mPlaying = true;
     }
 }
+
+
+
+boost::any AudioSimulation::startDownloadAndPlayFromURL(
+    std::vector<boost::any>& params)
+{
+    // Ignore if we didn't initialize properly
+    if (!ready())
+        return boost::any();
+
+    String name = Invokable::anyAsString(params[0]);
+    if (name != "play")
+        return boost::any();
+
+    // URL
+    if (params.size() < 2 || !Invokable::anyIsString(params[1]))
+        return boost::any();
+    String sound_url_str = Invokable::anyAsString(params[1]);
+    Transfer::URI sound_url(sound_url_str);
+    if (sound_url.empty()) return boost::any();
+    // Volume
+    float32 volume = 1.f;
+    if (params.size() >= 3 && Invokable::anyIsNumeric(params[2]))
+        volume = (float32)Invokable::anyAsNumeric(params[2]);
+    // Looping
+    bool looped = false;
+    if (params.size() >= 4 && Invokable::anyIsBoolean(params[3]))
+        looped = Invokable::anyAsBoolean(params[3]);
+
+    //actually initiate the download from the url.
+    ClipHandle id = incrementClipId();
+    mURLFullSoundLoaderManager->schedule(sound_url,volume,looped,id);
+
+    return boost::any(id);
+}
+
+
+ClipHandle AudioSimulation::incrementClipId()
+{
+    ClipHandle returner = mClipHandleSource++;
+    if (returner == CLIP_HANDLE_NULL)
+        return incrementClipId();
+
+    return returner;
+}
+
+
 
 void AudioSimulation::mix(uint8* raw_stream, int32 raw_len) {
     int16* stream = (int16*)raw_stream;
@@ -374,7 +406,8 @@ void AudioSimulation::mix(uint8* raw_stream, int32 raw_len) {
     int32 nchannels = 2; // Assuming stereo, see SDL audio setup
     int32 samples_len = stream_len / nchannels;
 
-    Lock lck(mMutex);
+    Mutex::scoped_lock(mMutex);
+
 
     for(int i = 0; i < samples_len; i++) {
         int32 mixed[MAX_CHANNELS];

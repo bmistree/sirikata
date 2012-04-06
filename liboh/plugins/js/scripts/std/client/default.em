@@ -73,7 +73,7 @@ function() {
         this._env = new std.env.Environment(pres);
         this._env.listen(std.core.bind(this._environmentChanged, this));
 
-//        this._audio = new std.audio.Audio(pres, 'sdlaudio');
+        this._audio = new std.audio.Audio(pres, 'sdlaudio');
     };
 
     
