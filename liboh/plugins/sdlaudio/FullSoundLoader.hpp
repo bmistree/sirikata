@@ -21,7 +21,7 @@ public:
     {}
     
     virtual bool schedule(
-        const Transfer::URI& sound_url, float volume, bool looped,ClipHandle id) = 0;
+        const Transfer::URI& sound_url, float volume, bool looped,ClipHandle id, bool local) = 0;
     
 protected:
     ClipMap* clips;

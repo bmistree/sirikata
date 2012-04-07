@@ -23,7 +23,7 @@ URLFullSoundLoaderManager::~URLFullSoundLoaderManager()
 }
 
 bool URLFullSoundLoaderManager::schedule(
-    const Transfer::URI& sound_url, float volume, bool looped,ClipHandle id)
+    const Transfer::URI& sound_url, float volume, bool looped,ClipHandle id, bool local)
 {
     AUDIO_LOG(debug,"Requesting download of url " <<sound_url.toString() << " in urlfullsound manager");
     
@@ -60,6 +60,7 @@ bool URLFullSoundLoaderManager::schedule(
         clip.volume = volume;
         clip.loop = looped;
         clip.id = id;
+        clip.local = local;
         (*clips)[id] = clip;
     }
 

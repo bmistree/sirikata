@@ -113,9 +113,11 @@ void AudioSimulation::iStart(Liveness::Token lt)
         new URLFullSoundLoaderManager(
             &mClips,&mMutex,mTransferPool,audioStrand,
             audioStrand->wrap(
-                std::tr1::bind(&AudioSimulation::playDownloadFinished,this,
+                std::tr1::bind(&AudioSimulation::downloadFinished,this,
                     _1, _2, _3,livenessToken())));
 
+    mSoundSender = new SoundSender(mSporef);
+    //lkjs;
 }
 
 
@@ -175,6 +177,8 @@ boost::any AudioSimulation::invoke(std::vector<boost::any>& params)
 
     if (name == "play") 
         return startDownloadAndPlayFromURL(params);
+    if (name == "playSpaceSound")
+        return startDownloadAndSendToSpaceFromURL(params);
     else if (name == "stop") {
         if (params.size() < 2 || !Invokable::anyIsNumeric(params[1]))
             return boost::any();
@@ -297,7 +301,7 @@ boost::any sendSound(std::vector<boost::any>& params)
 
 
 
-void AudioSimulation::playDownloadFinished(
+void AudioSimulation::downloadFinished(
     FullSoundLoaderStatus status,Transfer::DenseDataPtr response,
     std::set<ClipHandle> waitingClips,Liveness::Token lt)
 {
@@ -310,8 +314,6 @@ void AudioSimulation::playDownloadFinished(
         AUDIO_LOG(detailed, "Not playing download because audio simulation canceled");
         return;
     }
-
-    AUDIO_LOG(debug,"Request to play clip after download finished");
     
     Mutex::scoped_lock lock(mMutex);
 
@@ -322,6 +324,11 @@ void AudioSimulation::playDownloadFinished(
         // Might have been removed already
         if (mClips.find(*id_it) == mClips.end()) continue;
 
+        if (!mClips[*id_it].local)
+        {
+            mSoundSender->startSend(*id_it,response);
+            continue;
+        }
 
         FFmpegMemoryProtocol* dataSource =
             new FFmpegMemoryProtocol("temporaryWebName", response);
@@ -338,9 +345,6 @@ void AudioSimulation::playDownloadFinished(
         
         FFmpegAudioStreamPtr audio_stream = stream->getAudioStream(0, 2);
         mClips[*id_it].stream = audio_stream;
-
-        AUDIO_LOG(debug,"Correctly set stream");
-        
     }
 
     // Enable playback if we didn't have any active streams before
@@ -348,6 +352,40 @@ void AudioSimulation::playDownloadFinished(
         SDL_PauseAudio(0);
         mPlaying = true;
     }
+}
+
+
+
+boost::any AudioSimulation::startDownloadAndSendToSpaceFromURL(
+    std::vector<boost::any>& params)
+{
+    // Ignore if we didn't initialize properly
+    if (!ready())
+        return boost::any();
+
+    String name = Invokable::anyAsString(params[0]);
+    if (name != "playSpaceSound")
+        return boost::any();
+
+    // URL
+    if (params.size() < 2 || !Invokable::anyIsString(params[1]))
+        return boost::any();
+    String sound_url_str = Invokable::anyAsString(params[1]);
+    Transfer::URI sound_url(sound_url_str);
+    if (sound_url.empty()) return boost::any();
+    // Volume
+    float32 volume = 1.f;
+    if (params.size() >= 3 && Invokable::anyIsNumeric(params[2]))
+        volume = (float32)Invokable::anyAsNumeric(params[2]);
+
+    // Do not permit looping sounds in space
+    bool looped = false;
+
+    //actually initiate the download from the url.
+    ClipHandle id = incrementClipId();
+    mURLFullSoundLoaderManager->schedule(sound_url,volume,looped,id,false);
+
+    return boost::any(id);
 }
 
 
@@ -380,7 +418,7 @@ boost::any AudioSimulation::startDownloadAndPlayFromURL(
 
     //actually initiate the download from the url.
     ClipHandle id = incrementClipId();
-    mURLFullSoundLoaderManager->schedule(sound_url,volume,looped,id);
+    mURLFullSoundLoaderManager->schedule(sound_url,volume,looped,id,true);
 
     return boost::any(id);
 }

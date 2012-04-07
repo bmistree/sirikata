@@ -34,9 +34,15 @@ public:
  
     
     ~URLFullSoundLoaderManager();
-    
+
+    /**
+       @param {bool} local
+         - True if we want the sound to play directly in the browser
+         - False if we want the sound to be sent to the space
+    */
     virtual bool schedule(
-        const Transfer::URI& sound_url, float volume, bool looped,ClipHandle id);
+        const Transfer::URI& sound_url, float volume, bool looped,
+        ClipHandle id,bool local);
     
 private:
     typedef std::pair <URLFullSoundLoader*, std::set<ClipHandle> > SlMapElement;

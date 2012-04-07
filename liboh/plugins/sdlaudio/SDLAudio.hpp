@@ -14,6 +14,7 @@
 #include "SoundCommon.hpp"
 #include "URLFullSoundLoader.hpp"
 #include "FFmpegAudioStream.hpp"
+#include "SoundSender.hpp"
 
 namespace Sirikata {
 namespace SDL {
@@ -26,7 +27,10 @@ class AudioSimulation : public Simulation,
 
 {
 public:
-    AudioSimulation(Context* ctx, Network::IOStrandPtr aStrand, const SpaceObjectReference& sporef);
+    AudioSimulation(
+        Context* ctx, Network::IOStrandPtr aStrand,
+        const SpaceObjectReference& sporef);
+    
     virtual ~AudioSimulation();
 
     // Service Interface
@@ -79,6 +83,10 @@ private:
     Mutex mMutex;
 
     Transfer::TransferPoolPtr mTransferPool;
+
+    /**
+       FIXME: this is cruft.  Get rid of it.
+     */
     struct DownloadTask {
         Transfer::ResourceDownloadTaskPtr task;
         std::set<ClipHandle> waiting;
@@ -94,6 +102,7 @@ private:
     //handling invokable input functions
 
     URLFullSoundLoaderManager* mURLFullSoundLoaderManager;
+    SoundSender* mSoundSender;
     
     /**
        If get a request to download full audio, and then play it, downloads file
@@ -101,11 +110,14 @@ private:
      */
     boost::any startDownloadAndPlayFromURL(std::vector<boost::any>& params);
 
+    boost::any startDownloadAndSendToSpaceFromURL(
+        std::vector<boost::any>& params);
+    
     /**
-       Called from within audiostrand.  Starts playing file that had been
-       downloaded.
+       Called from within audiostrand.  Either starts playing file that had been
+       downloaded, or starts sending the file bit-by-bit to space.
      */
-    void playDownloadFinished(
+    void downloadFinished(
         FullSoundLoaderStatus status,Transfer::DenseDataPtr response,
         std::set<ClipHandle> waitingClips,Liveness::Token lt);
 

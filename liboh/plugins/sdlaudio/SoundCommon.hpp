@@ -3,7 +3,23 @@
 
 #include <map>
 #include <boost/thread/mutex.hpp>
+#include <functional>
+
 #define AUDIO_LOG(lvl, msg) SILOG(sdl-audio, lvl, msg)
+
+// used once: port will listen for any message, from any object.
+// message will be a sound datagram.
+#define AUDIO_MAKER_PORT 24
+
+//used once: port will listen for any message from any object that wants
+//to either subscribe to listening sounds or unsubscribe from listening
+//to sounds.
+#define AUDIO_LISTENER_SUBSCRIPTION_PORT 25
+
+//used many times.  any time we receive a listener subscription request,
+//we create a separate port for the listener
+#define AUDIO_LISTENER_PORT 26
+
 
 namespace Sirikata
 {
@@ -25,6 +41,7 @@ struct Clip {
     float32 volume;
     bool loop;
     ClipHandle id;
+    bool local;
 };
 typedef std::map<ClipHandle, Clip> ClipMap;
 
