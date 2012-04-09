@@ -20,7 +20,7 @@ Simulation* createSDLAudio(
     const String& options,
     Network::IOStrandPtr ptr
 ) {
-    return new SDL::AudioSimulation(ctx,ptr,presenceid);
+    return new SDL::AudioSimulation(ctx,ptr,presenceid,obj);
 }
 
 }

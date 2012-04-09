@@ -35,7 +35,8 @@ extern void mixaudio(void* _sim, Uint8* raw_stream, int raw_len) {
 }
 
 AudioSimulation::AudioSimulation(
-    Context* ctx,Network::IOStrandPtr ptr,const SpaceObjectReference& sporef)
+    Context* ctx,Network::IOStrandPtr ptr,const SpaceObjectReference& sporef,
+    HostedObjectPtr hop)
  : audioStrand(ptr),
    mContext(ctx),
    mInitializedAudio(false),
@@ -43,9 +44,10 @@ AudioSimulation::AudioSimulation(
    mSporef(sporef),
    mClipHandleSource(0),
    mPlaying(false),
-   mURLFullSoundLoaderManager(NULL)
+   mURLFullSoundLoaderManager(NULL),
+   mSoundSender(NULL),
+   mHostedObjectPtr(hop)
 {
-    
 }
 
 
@@ -116,7 +118,7 @@ void AudioSimulation::iStart(Liveness::Token lt)
                 std::tr1::bind(&AudioSimulation::downloadFinished,this,
                     _1, _2, _3,livenessToken())));
 
-    mSoundSender = new SoundSender(mSporef);
+    mSoundSender = new SoundSender(mSporef,mHostedObjectPtr);
     //lkjs;
 }
 

@@ -20,6 +20,8 @@
 //we create a separate port for the listener
 #define AUDIO_LISTENER_PORT 26
 
+#include <sirikata/oh/HostedObject.hpp>
+
 
 namespace Sirikata
 {

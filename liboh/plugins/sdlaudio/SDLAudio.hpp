@@ -10,6 +10,8 @@
 #include <sirikata/core/transfer/TransferMediator.hpp>
 #include <sirikata/core/transfer/ResourceDownloadTask.hpp>
 #include <sirikata/core/util/Liveness.hpp>
+#include <sirikata/oh/Platform.hpp>
+
 
 #include "SoundCommon.hpp"
 #include "URLFullSoundLoader.hpp"
@@ -29,7 +31,7 @@ class AudioSimulation : public Simulation,
 public:
     AudioSimulation(
         Context* ctx, Network::IOStrandPtr aStrand,
-        const SpaceObjectReference& sporef);
+        const SpaceObjectReference& sporef,HostedObjectPtr hop);
     
     virtual ~AudioSimulation();
 
@@ -103,6 +105,7 @@ private:
 
     URLFullSoundLoaderManager* mURLFullSoundLoaderManager;
     SoundSender* mSoundSender;
+    HostedObjectPtr mHostedObjectPtr;
     
     /**
        If get a request to download full audio, and then play it, downloads file

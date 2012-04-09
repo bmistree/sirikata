@@ -6,6 +6,7 @@
 #include <sirikata/core/transfer/ResourceDownloadTask.hpp>
 #include <sirikata/core/util/Liveness.hpp>
 #include <sirikata/core/odp/DelegateService.hpp>
+#include <sirikata/oh/Platform.hpp>
 
 #include "SoundCommon.hpp"
 
@@ -15,22 +16,17 @@ namespace Sirikata
 namespace SDL
 {
 
+
 class SoundSender : public Liveness
 {
 public:
-    SoundSender(SpaceObjectReference _sporef);
+    SoundSender(SpaceObjectReference _sporef,HostedObjectPtr hop);
     ~SoundSender();
 
     bool startSend(ClipHandle,Transfer::DenseDataPtr);
     
     
 private:
-    ODP::DelegatePort* createDelegateODPPort(
-        ODP::DelegateService* parentService, const SpaceObjectReference& spaceobj,
-        ODP::PortID port);
-
-    bool sendODP(
-        const ODP::Endpoint& dest_ep, MemoryReference payload, ODP::PortID port);
 
     void createMakerSubmitPort();
 
@@ -45,8 +41,10 @@ private:
 
     //any message received on this port 
     ODP::Port* makerSubmitPort;
-
+    HostedObjectPtr mHostedObjectPtr;
+    
     ODP::Endpoint dest;
+    
     
 };
 

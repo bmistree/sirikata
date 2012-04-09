@@ -62,8 +62,8 @@ namespace Sirikata
 namespace Trace {
   class Trace;
 }
-  class ObjectConnection;
-  class OSegLookupQueue;
+class ObjectConnection;
+class OSegLookupQueue;
 class ForwarderServiceQueue;
 class ODPFlowScheduler;
 class LocationService;
@@ -74,9 +74,9 @@ class DelegateService;
 }
 
 class Forwarder : public ServerMessageDispatcher,
-		    public ServerMessageRouter,
-                    public MessageRecipient,
-                    public ServerMessageQueue::Sender,
+                  public ServerMessageRouter,
+                  public MessageRecipient,
+                  public ServerMessageQueue::Sender,
                   public ServerMessageReceiver::Listener,
                   private ForwarderServiceQueue::Listener,
                   public Service

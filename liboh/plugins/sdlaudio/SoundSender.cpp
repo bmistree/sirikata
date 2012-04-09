@@ -7,17 +7,14 @@ namespace Sirikata
 namespace SDL
 {
 
-SoundSender::SoundSender(SpaceObjectReference _sporef)
+SoundSender::SoundSender(SpaceObjectReference _sporef,HostedObjectPtr hop)
  : sporef(_sporef),
    mDelegateODPService(NULL),
    makerSubmitPort(NULL),
+   mHostedObjectPtr(hop),
    dest (SpaceObjectReference::null(),AUDIO_MAKER_PORT)
 {
-    mDelegateODPService = new ODP::DelegateService(
-        std::tr1::bind(
-            &SoundSender::createDelegateODPPort, this,
-            _1, _2, _3
-        ));
+    createMakerSubmitPort();
 }
 
 
@@ -26,7 +23,7 @@ void SoundSender::createMakerSubmitPort()
 {
     //listen for any sound maker messages from any object
     makerSubmitPort =
-        mDelegateODPService->bindODPPort(sporef,AUDIO_MAKER_PORT);
+        mHostedObjectPtr->bindODPPort(sporef,AUDIO_MAKER_PORT);
     
     if (makerSubmitPort != NULL)
     {
@@ -48,24 +45,16 @@ bool SoundSender::startSend(ClipHandle id ,Transfer::DenseDataPtr data)
     if (makerSubmitPort == NULL)
         return false;
 
-
     String msgBody ("test");
     MemoryReference toSend(msgBody);
     //send to space
     makerSubmitPort->send(dest, toSend);
-    
+
     //lkjs;
     AUDIO_LOG(error,"Fix.  start send of soundsender should actually do something");
     return true;
 }
 
-bool SoundSender::sendODP(
-    const ODP::Endpoint& dest_ep, MemoryReference payload, ODP::PortID port)
-{
-    //lkjs;
-    AUDIO_LOG(error,"Fix.  Must add send functionality to soundsender");
-    return true;
-}
 
 
 
@@ -78,21 +67,6 @@ void SoundSender::handleMsgAcks (
 }
     
 
-
-
-ODP::DelegatePort* SoundSender::createDelegateODPPort(
-    ODP::DelegateService* parentService, const SpaceObjectReference& spaceobj,
-    ODP::PortID port)
-{
-    ODP::Endpoint port_ep(spaceobj,port);
-    
-    return new ODP::DelegatePort(
-        mDelegateODPService,
-        port_ep,
-        std::tr1::bind(
-            &SoundSender::sendODP, this,
-            _1, _2, port));
-}
 
 
 
