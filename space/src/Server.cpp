@@ -176,6 +176,8 @@ void Server::newStream(int err, SST::Stream<SpaceObjectReference>::Ptr s) {
 
 Server::~Server()
 {
+    mContext->removeODPService();
+    
     delete mMigrateServerMessageService;
 
     mForwarder->unregisterMessageRecipient(SERVER_PORT_MIGRATION, this);

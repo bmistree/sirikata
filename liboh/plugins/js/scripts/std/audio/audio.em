@@ -35,4 +35,14 @@ function() {
         return clip;
     };
 
+    ns.Audio.prototype.playSpaceSound = function(url,volume)
+    {
+        var success = this.invoke('playSpaceSound', url, volume);
+        if (typeof(success) == 'undefined')
+            system.__debugPrint('\nERROR PLAYING SPACE SOUND FROM ' + url + '\n');
+        else
+            system.__debugPrint('\nMAYBE SUCCESS PLAYING SOUND FROM ' + url + '\n');
+        
+    };
+
 })();

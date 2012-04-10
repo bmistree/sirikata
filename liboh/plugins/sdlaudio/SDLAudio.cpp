@@ -328,6 +328,8 @@ void AudioSimulation::downloadFinished(
 
         if (!mClips[*id_it].local)
         {
+            //means that we are supposed to transmit this sound to the space
+            //server for mixing and delivery to others.
             mSoundSender->startSend(*id_it,response);
             continue;
         }
@@ -471,13 +473,17 @@ void AudioSimulation::mix(uint8* raw_stream, int32 raw_len) {
             stream[i*nchannels + c] = (int16)std::min(std::max(mixed[c], -32768), 32767);
     }
 
-    // Clean out streams that have finished
-    for(ClipMap::iterator st_it = mClips.begin(); st_it != mClips.end(); ) {
+    // Clean out local streams that have finished
+    for(ClipMap::iterator st_it = mClips.begin(); st_it != mClips.end(); )
+    {
         ClipMap::iterator del_it = st_it;
-        if (del_it->second.stream->finished()) mClips.erase(del_it);
+        if (del_it->second.local && del_it->second.stream->finished())
+            mClips.erase(del_it);
+        
         st_it++;
     }
 
+    
     // Disable playback if we've run out of sounds
     if (mClips.empty()) {
         SDL_PauseAudio(1);

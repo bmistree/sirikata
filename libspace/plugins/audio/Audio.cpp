@@ -36,22 +36,45 @@ Audio::Audio(SpaceContext* context)
 {
     AUDIO_LOG(debug,"Constructing space audio module");
     //whenever created a new port, put 
-    mDelegateODPService = new ODP::DelegateService(
-        std::tr1::bind(
-            &Audio::createDelegateODPPort, this,
-            _1, _2, _3
-        )
-    );
 
+    
     createMakerSubmitPort();
     createListenerSubscriptionPort();
+}
+
+Audio::~Audio()
+{
+    delete makerSubmitPort;
+    delete listenerSubscriptionPort;
+
+    {
+        Mutex::scoped_lock lock(makerMutex);
+        for (MakerMapIter iter = soundMakers.begin();
+             iter != soundMakers.end(); ++iter)
+        {
+            delete iter->second;
+        }
+        soundMakers.clear();
+    }
+
+    {
+        Mutex::scoped_lock lock(listenerMutex);
+
+        for (ListenerMapIter iter = soundListeners.begin();
+             iter != soundListeners.end(); ++iter)
+        {
+            delete iter->second;
+        }
+        soundListeners.clear();
+    }
+    
 }
 
 void Audio::createMakerSubmitPort()
 {
     //listen for any sound maker messages from any object
     makerSubmitPort =
-        mDelegateODPService->bindODPPort(
+        mContext->odpService->bindODPPort(
             SpaceObjectReference::null(),AUDIO_MAKER_PORT);
 
     if (makerSubmitPort != NULL)
@@ -72,7 +95,7 @@ void Audio::createListenerSubscriptionPort()
 {
     //listen for any subscription messages from any object
     listenerSubscriptionPort =
-        mDelegateODPService->bindODPPort(
+        mContext->odpService->bindODPPort(
             SpaceObjectReference::null(),AUDIO_LISTENER_SUBSCRIPTION_PORT);
 
     if (listenerSubscriptionPort != NULL)
@@ -91,32 +114,6 @@ void Audio::createListenerSubscriptionPort()
 }
 
     
-
-bool Audio::sendODP(
-    const ODP::Endpoint& dest_ep, MemoryReference payload, ODP::PortID port)
-{
-    AUDIO_LOG(error, "Error.  have not set up sending odp messages in audio space plugin.");
-    assert(false);
-    return true;
-}
-
-
-
-ODP::DelegatePort* Audio::createDelegateODPPort(
-    ODP::DelegateService* parentService, const SpaceObjectReference& spaceobj,
-    ODP::PortID port)
-{
-    ODP::Endpoint port_ep(spaceobj,port);
-
-    AUDIO_LOG(debug, "Creating for port "<<port);
-    
-    return new ODP::DelegatePort(
-        mDelegateODPService,
-        port_ep,
-        std::tr1::bind(
-            &Audio::sendODP, this,
-            _1, _2, port));
-}
 
 
 

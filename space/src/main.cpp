@@ -99,7 +99,8 @@ void createServer(Server** server_out, ModuleList* modules_out, ServerData sd, A
 
     Server* server = new Server(sd.space_context, sd.auth, sd.forwarder, sd.loc_service, sd.cseg, sd.prox, sd.oseg, addr, sd.oh_sess_mgr, sd.obj_sess_mgr);
     sd.space_context->add(server);
-
+    sd.space_context->addODPService(server);
+    
     *server_out = server;
 
     // With everything else setup, we can start server modules

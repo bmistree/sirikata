@@ -59,9 +59,15 @@ class ObjectSessionManager;
  *  MessageRouter (sending messages), MessageDispatcher (subscribe/unsubscribe
  *  from messages), and a Trace object.
  */
-class SIRIKATA_SPACE_EXPORT SpaceContext : public Context {
+class SIRIKATA_SPACE_EXPORT SpaceContext : public Context
+{
 public:
-    SpaceContext(const String& name, ServerID _id, ODPSST::ConnectionManager* sstConnMgr, OHDPSST::ConnectionManager* ohsstConnMgr, Network::IOService* ios, Network::IOStrand* strand, const Time& epoch, Trace::Trace* _trace, const Duration& duration = Duration::zero());
+    SpaceContext(
+        const String& name, ServerID _id, ODPSST::ConnectionManager* sstConnMgr,
+        OHDPSST::ConnectionManager* ohsstConnMgr, Network::IOService* ios,
+        Network::IOStrand* strand, const Time& epoch, Trace::Trace* _trace,
+        const Duration& duration = Duration::zero());
+    
     ~SpaceContext();
 
     const String& name() { return mName; }
@@ -100,6 +106,30 @@ public:
 
     SpaceTrace* spacetrace() const { return mSpaceTrace; }
 
+
+    //called immediately after creating odpService to add (likely ODP::Service
+    //will be Server, and just use that).
+    void addODPService(ODP::Service* odpServ)
+    {
+        odpService = odpServ;
+    }
+
+    //called in destructor of odpService.
+    void removeODPService()
+    {
+        odpService = NULL;
+    }
+
+
+    //borrowed data, should not delete ourselves.    
+    //note: user should be careful.  if you will be destroyed after the
+    //odpService, your ports will no longer be valid.  however, there is nothing
+    //signalling destruction of odpService to objects using created ports.
+    //for time being, this is okay, because only space modules (destroyed before
+    //server) use odpService.
+    ODP::Service* odpService;
+
+    
 private:
     // Allow these classes to set their corresponding fields in SpaceContext
     friend class ServerMessageRouter;

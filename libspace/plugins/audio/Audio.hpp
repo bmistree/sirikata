@@ -30,6 +30,7 @@ namespace Sirikata {
 class Audio : public SpaceModule, public ObjectSessionListener {
 public:
     Audio(SpaceContext* ctx);
+    ~Audio();
 
     virtual void start();
     virtual void stop();
@@ -55,23 +56,16 @@ private:
 
     //sound listeners
     typedef std::tr1::unordered_map<ObjectReference, SoundListener*,ObjectReference::Hasher> ListenerMap;
+    typedef ListenerMap::iterator ListenerMapIter;
     ListenerMap soundListeners;
     Mutex listenerMutex;
 
-    
-    ODP::DelegateService* mDelegateODPService;
 
     //any message received on this port 
     ODP::Port* makerSubmitPort;
     ODP::Port* listenerSubscriptionPort;
 
 
-    /**
-       Gets called whenever we use mDelegateODPService to create a port.
-     */
-    ODP::DelegatePort* createDelegateODPPort(
-        ODP::DelegateService* parentService, const SpaceObjectReference& spaceobj,
-        ODP::PortID port);
 
     /**
        Called in constructor.  Creates and begins listening on makerSubmit port
@@ -81,12 +75,6 @@ private:
     void createListenerSubscriptionPort();
 
     
-    /**
-       All odp messages that we send (through mDelegateODPService) flow through
-       this function.
-     */
-    bool sendODP(
-        const ODP::Endpoint& dest_ep, MemoryReference payload, ODP::PortID port);
 
 
     /**
