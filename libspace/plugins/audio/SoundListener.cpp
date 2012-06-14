@@ -6,25 +6,37 @@
 namespace Sirikata
 {
 
-
-SoundListener::SoundListener(const ObjectReference& oref, ODP::Port* p)
- : objId(oref),
-   port(p)
+SoundListener::SoundListener(const ObjectReference& oref, ODPSST::Stream::Ptr strm)
+ : objId (oref),
+   stream(strm)
 {
+    record_stream.initialize(
+        stream,
+        std::tr1::bind(&SoundListener::handleMessage,this,
+            std::tr1::placeholders::_1,livenessToken())
+    );
 }
 
 
-SoundListener::~SoundListener()
+void SoundListener::sendSound(const MemoryReference& toSend)
 {
-    delete port;
+    SL_LOG(error,"Sound listener received a new sound.  Sending");
+    record_stream.write(toSend);
+}
+
+SoundListener::~SoundListener() 
+{
+    //nothing to clean up
+} 
+    
+
+
+void SoundListener::handleMessage(MemoryReference data, Liveness::Token lt)
+{
+    SL_LOG(error,"Should not receive messages from sound listener");
 }
 
 
-// void SoundMaker::pushSamples(SoundSamples& newSamples)
-// {
-//     std::cout<<"\npush samples is not finished.  needs to be.\n";
-//     assert(false);
-// }
 
 
 } //end namespace Sirikata

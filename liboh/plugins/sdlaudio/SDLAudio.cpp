@@ -333,7 +333,6 @@ void AudioSimulation::downloadFinished(
             mSoundSender->startSend(*id_it,response);
             continue;
         }
-
         FFmpegMemoryProtocol* dataSource =
             new FFmpegMemoryProtocol("temporaryWebName", response);
         

@@ -10,8 +10,8 @@
 #include "SoundMaker.hpp"
 #include "SoundListener.hpp"
 #include <boost/tr1/unordered_map.hpp>
-
-
+#include <sirikata/core/util/Liveness.hpp>
+#include <sirikata/core/network/RecordSSTStream.hpp>
 #include <sirikata/core/odp/DelegateService.hpp>
 
 
@@ -27,11 +27,11 @@ namespace Sirikata {
     Any object can subscribe for mixed audio by sending a subscribe message to
     audio_listener_subscription_port.  (note: to start with, we skip mixing.)
  */
-class Audio : public SpaceModule, public ObjectSessionListener {
+class Audio : public SpaceModule, public ObjectSessionListener, public Liveness {
 public:
     Audio(SpaceContext* ctx);
     ~Audio();
-
+    
     virtual void start();
     virtual void stop();
 
@@ -47,13 +47,6 @@ private:
     
     typedef boost::mutex Mutex;
 
-    //sound makers
-    typedef std::tr1::unordered_map<ObjectReference, SoundMaker*, ObjectReference::Hasher> MakerMap;
-    typedef MakerMap::iterator MakerMapIter;
-    typedef MakerMap::const_iterator MakerMapCIter;
-    MakerMap soundMakers; //eventually would want a semaphore to control this
-    Mutex makerMutex;
-
     //sound listeners
     typedef std::tr1::unordered_map<ObjectReference, SoundListener*,ObjectReference::Hasher> ListenerMap;
     typedef ListenerMap::iterator ListenerMapIter;
@@ -61,40 +54,61 @@ private:
     Mutex listenerMutex;
 
 
-    //any message received on this port 
-    ODP::Port* makerSubmitPort;
-    ODP::Port* listenerSubscriptionPort;
-
-
-
     /**
-       Called in constructor.  Creates and begins listening on makerSubmit port
-       and listenerSubscription port, respectively.
+       Stream connection to the object has been set up.  Create an entry in
+       sound listeners associated with it, enabling it to receive sounds through
+       the passed in stream.
      */
-    void createMakerSubmitPort();
-    void createListenerSubscriptionPort();
+    void handleListenerStream(int err, ODPSST::Stream::Ptr strm,
+        Liveness::Token lt);
+
+    void handleMakerStream(int err, ODPSST::Stream::Ptr strm,Liveness::Token lt);
 
     
-
-
     /**
-       When a message is sent to the sound maker port or the listener
-       subscription port, these functions handle that message, respectively.
+       @param {MemoryReference} data --- Should contain the sound to be played.
+       @see startSend of liboh/plugins/sdlaudio/SoundSender.cpp.
 
-       payload of makerMessage should be parsed with
-       Sirikata::Audio::Protocol::SoundMakerMsg
-
-       payload of listenerSubscriptionMessage should be parsed with
-       Sirikata::Audio::Protocol::ListenerSubscribeMsg
-       or
-       Sirikata::Audio::Protocol::ListenerUnsubscribeMsg
-
-       Otherwise, message is discarded
+       @param {IncomingAudioIndex} inAudIndex --- Each sound sender uses a
+       single stream once to send each sound.  This means that after we have
+       received a message on a stream, we can destroy all state associated with
+       that stream, which is stored in an IncomingAudio struct in iam.
+       inAudIndex is the key iam that retrieves these data.
      */
-    void handleMakerMessageIn (
-        const ODP::Endpoint& src, const ODP::Endpoint& dst, MemoryReference payload);
-    void handleListenerSubscriptionMessageIn (
-        const ODP::Endpoint& src, const ODP::Endpoint& dst, MemoryReference payload);
+    typedef uint32 IncomingAudioIndex;
+    void handleNewAudioMsg(MemoryReference data,
+        IncomingAudioIndex inAudIndex, Liveness::Token lt);
+    
+    Mutex incomingAudioMutex;
+    IncomingAudioIndex incomingAudioCounter;
+    struct IncomingAudio
+    {
+        IncomingAudio(
+            ODPSST::Stream::Ptr strm,IncomingAudioIndex ider,
+            Audio* aud)
+         : stream(strm),
+           id(ider),
+           audio(aud)
+        {
+            record_stream.initialize(stream,
+                std::tr1::bind(&Audio::handleNewAudioMsg, audio,
+                    std::tr1::placeholders::_1,id,audio->livenessToken()));
+        }
+        
+        ~IncomingAudio()
+        {}
+            
+        RecordSSTStream<ODPSST::Stream::Ptr> record_stream;
+        ODPSST::Stream::Ptr stream;
+        IncomingAudioIndex id;
+        Audio* audio;
+        
+    };
+    typedef std::tr1::unordered_map<uint32, IncomingAudio*> IncomingAudioMap;
+    typedef IncomingAudioMap::iterator IncomingAudioMapIter;
+    IncomingAudioMap iam;
+    
+    
     
 };
 

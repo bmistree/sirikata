@@ -1,6 +1,7 @@
 
 #include "SoundSender.hpp"
 #include "FFmpegMemoryProtocol.hpp"
+#include "FFmpegAudioStream.hpp"
 
 // FFmpeg doesn't check for C++ in their headers, so we have to wrap all FFmpeg
 // includes in extern "C"
@@ -11,6 +12,7 @@ extern "C" {
 
 #include "FFmpegGlue.hpp"
 
+
 namespace Sirikata
 {
 namespace SDL
@@ -18,77 +20,90 @@ namespace SDL
 
 SoundSender::SoundSender(SpaceObjectReference _sporef,HostedObjectPtr hop)
  : sporef(_sporef),
-   mDelegateODPService(NULL),
-   makerSubmitPort(NULL),
    mHostedObjectPtr(hop),
    dest (SpaceObjectReference(sporef.space(),ObjectReference::null()),AUDIO_MAKER_PORT)
 {
-    createMakerSubmitPort();
+    createMakerSubmitStream();
 }
 
 
 
-void SoundSender::createMakerSubmitPort()
+void SoundSender::createMakerSubmitStream()
 {
-    //listen for any sound maker messages from any object
-    makerSubmitPort =
-        mHostedObjectPtr->bindODPPort(sporef,AUDIO_MAKER_PORT);
+    ODPSST::Stream::Ptr stream = mHostedObjectPtr->getSpaceStream(sporef);
+    if (!stream) return;
     
-    if (makerSubmitPort != NULL)
+    
+    stream->createChildStream(
+        std::tr1::bind(&SoundSender::handleCreatedStream, this,
+            std::tr1::placeholders::_1, std::tr1::placeholders::_2,
+            livenessToken()),
+        NULL, 0,
+        AUDIO_MAKER_PORT, AUDIO_MAKER_PORT
+    );
+}
+
+
+void SoundSender::handleCreatedStream(int err, ODPSST::Stream::Ptr strm, Liveness::Token lt)
+{
+    Liveness::Lock locked (lt);
+    if (!locked)
+        return;  //object was deleted 
+    
+    if (err != SST_IMPL_SUCCESS)
     {
-        //any message we receive on this port will go to handleMsgAcks
-        makerSubmitPort->receive(
-            std::tr1::bind(&SoundSender::handleMsgAcks, this,
-                _1, _2, _3,livenessToken()));
-    }
-    else
-    {
-        String errMsg = "Error, could not setup requested ";
-        errMsg += "makerSubmitPort.  Undefined behavior to follow";
+        String errMsg = "Failed to create substream for audio send ";
+        errMsg += "messages. This might happen if the audio service ";
+        errMsg += "isn't running on the space server.";
         AUDIO_LOG(error, errMsg);
+
+        createMakerSubmitStream();
+        
+        return;
     }
-}
-
-bool SoundSender::startSend(ClipHandle id ,Transfer::DenseDataPtr data)
-{
-    if (makerSubmitPort == NULL)
-        return false;
-
-    FFmpegMemoryProtocol* dataSource =
-        new FFmpegMemoryProtocol("temporaryWebName", data);
-
-    //send all the packets at once.
-    uint8 dataBlock[1000];
-
-    AUDIO_LOG(error,"Fix.  startSend of soundsender should actually do something");
-    size_t readData = dataSource->read(1000,dataBlock);
-    while (readData != (size_t)AVERROR_EOF)
-    {
-        String msgBody((const char*)dataBlock, readData);
-        MemoryReference toSend(msgBody);
-        //send to space
-        makerSubmitPort->send(dest, toSend);
-        readData = dataSource->read(1000,dataBlock);
-    }
-    return true;
-
-    //FIXME: need to consider what to do with clips that are non-local after
-    //they have been sent.
-}
-
-
-
-
-void SoundSender::handleMsgAcks (
-    const ODP::Endpoint& src, const ODP::Endpoint& dst,
-    MemoryReference payload, Liveness::Token lt)
-{
-    //lkjs;
-    AUDIO_LOG(error,"Fix.  Must add msg ack handler to soundsender");
-}
     
+    mStream = strm;
+    mRecordStream.initialize(
+        mStream,
+        std::tr1::bind(&SoundSender::handleMessage, this,
+            std::tr1::placeholders::_1,livenessToken())
+    );
+}
 
 
+void SoundSender::handleMessage(MemoryReference data, Liveness::Token lt)
+{
+    Liveness::Lock locked (lt);
+    if (!locked)
+        return;  //object was deleted 
+    
+    
+    String errMsg = "The audio sender does not expect to ";
+    errMsg += "get messages back from the space.  Something ";
+    errMsg += "is going wrong.";
+    AUDIO_LOG(error, errMsg);
+}
+
+
+
+bool SoundSender::startSend(ClipHandle id, Transfer::DenseDataPtr data)
+{
+    String logMsg = "Got into startSend for a clip.";
+    AUDIO_LOG(error,logMsg);
+    
+    if (! mStream)
+    {
+        String errMsg = "Could not send clip because improperly initialized ";
+        errMsg += "audio sst stream.";
+        AUDIO_LOG(error,errMsg);
+        return false;
+    }
+    
+    AUDIO_LOG(info,"sending data");
+    MemoryReference toSend = MemoryReference( (const void*) data->begin(), data->length());
+    mRecordStream.write(toSend);
+    return true;
+}
 
 
 

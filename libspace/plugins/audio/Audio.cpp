@@ -12,11 +12,6 @@
 // message will be a sound datagram.
 #define AUDIO_MAKER_PORT 24
 
-//used once: port will listen for any message from any object that wants
-//to either subscribe to listening sounds or unsubscribe from listening
-//to sounds.
-#define AUDIO_LISTENER_SUBSCRIPTION_PORT 25
-
 //used many times.  any time we receive a listener subscription request,
 //we create a separate port for the listener
 #define AUDIO_LISTENER_PORT 26
@@ -32,88 +27,23 @@ using std::tr1::placeholders::_3;
 
 
 Audio::Audio(SpaceContext* context)
- : SpaceModule(context)
+ : SpaceModule(context),
+   incomingAudioCounter (0)
 {
     AUDIO_LOG(debug,"Constructing space audio module");
-    //whenever created a new port, put 
-
-    
-    createMakerSubmitPort();
-    createListenerSubscriptionPort();
 }
 
 Audio::~Audio()
 {
-    delete makerSubmitPort;
-    delete listenerSubscriptionPort;
+    Mutex::scoped_lock lock(listenerMutex);
 
+    for (ListenerMapIter iter = soundListeners.begin();
+         iter != soundListeners.end(); ++iter)
     {
-        Mutex::scoped_lock lock(makerMutex);
-        for (MakerMapIter iter = soundMakers.begin();
-             iter != soundMakers.end(); ++iter)
-        {
-            delete iter->second;
-        }
-        soundMakers.clear();
+        delete iter->second;
     }
-
-    {
-        Mutex::scoped_lock lock(listenerMutex);
-
-        for (ListenerMapIter iter = soundListeners.begin();
-             iter != soundListeners.end(); ++iter)
-        {
-            delete iter->second;
-        }
-        soundListeners.clear();
-    }
-    
+    soundListeners.clear();
 }
-
-void Audio::createMakerSubmitPort()
-{
-    //listen for any sound maker messages from any object
-    makerSubmitPort =
-        mContext->odpService->bindODPPort(
-            SpaceObjectReference::null(),AUDIO_MAKER_PORT);
-
-    if (makerSubmitPort != NULL)
-    {
-        //any message we receive on this port will go to handleMakerMessageIn
-        makerSubmitPort->receive(
-            std::tr1::bind(&Audio::handleMakerMessageIn, this, _1, _2, _3));
-    }
-    else
-    {
-        String errMsg = "Error, could not setup requested ";
-        errMsg += "makerSubmitPort.  Undefined behavior to follow";
-        AUDIO_LOG(error, errMsg);
-    }
-}
-
-void Audio::createListenerSubscriptionPort()
-{
-    //listen for any subscription messages from any object
-    listenerSubscriptionPort =
-        mContext->odpService->bindODPPort(
-            SpaceObjectReference::null(),AUDIO_LISTENER_SUBSCRIPTION_PORT);
-
-    if (listenerSubscriptionPort != NULL)
-    {
-        //any message that we receive on this port will go to
-        //handleListenerSubscriptionMessageIn
-        listenerSubscriptionPort->receive(
-            std::tr1::bind(&Audio::handleListenerSubscriptionMessageIn, this, _1, _2, _3));
-    }
-    else
-    {
-        String errMsg = "Error, could not setup requested ";
-        errMsg += "listenerSubscriptionPort.  Undefined behavior to follow";
-        AUDIO_LOG(error, errMsg);
-    }
-}
-
-    
 
 
 
@@ -127,37 +57,116 @@ void Audio::stop() {
 
 void Audio::newSession(ObjectSession* session)
 {
-    //ignore.  not interested in objects unless they specifically subscribe to
-    //listen or send a noise maker message.
+    //by default, all objects are listeners.
+    ODPSST::Stream::Ptr strmListener = session->getStream();
+    if (! strmListener)
+        return;
+    strmListener->listenSubstream(
+        AUDIO_LISTENER_PORT,
+        std::tr1::bind(&Audio::handleListenerStream, this, std::tr1::placeholders::_1,
+            std::tr1::placeholders::_2, livenessToken())
+    );
+
+
+    //also listen for any objects that make sound
+    ODPSST::Stream::Ptr strmMaker = session->getStream();
+    if (! strmMaker)
+        return;
+
+
+    AUDIO_LOG(error,"About to create a listening substream");
+    strmMaker->listenSubstream(
+        AUDIO_MAKER_PORT,
+        std::tr1::bind(&Audio::handleMakerStream, this,
+            std::tr1::placeholders::_1, std::tr1::placeholders::_2,
+            livenessToken())
+    );
 }
 
-void Audio::handleMakerMessageIn (
-    const ODP::Endpoint& src, const ODP::Endpoint& dst, MemoryReference payload)
+void Audio::handleMakerStream(int err, ODPSST::Stream::Ptr strm,Liveness::Token lt)
 {
-    AUDIO_LOG(error,"Received a message from a sound maker");
+    if (err != SST_IMPL_SUCCESS)
+    {
+        AUDIO_LOG(error, "Error listening on sound maker stream on space");
+        return;
+    }
+
+    Liveness::Lock locked (lt);
+    if (!locked)
+        return;  //Audio module deleted
+
+    Mutex::scoped_lock lock(listenerMutex);
+    IncomingAudioIndex mId = incomingAudioCounter++;
+    IncomingAudio* ia = new IncomingAudio(strm,mId,this);
+    iam[mId] = ia;
 }
 
-void Audio::handleListenerSubscriptionMessageIn (
-    const ODP::Endpoint& src, const ODP::Endpoint& dst, MemoryReference payload)
+
+void Audio::handleNewAudioMsg(MemoryReference data,
+    IncomingAudioIndex inAudIndex, Liveness::Token lt)
 {
-    AUDIO_LOG(error,"Received a message for a listen subscription");
-}
+    Liveness::Lock locked (lt);
+    if (!locked)
+        return;  //Audio module deleted
 
+    //remove the sound from the incoming audio map
+    {
+        Mutex::scoped_lock lock(listenerMutex);
+        IncomingAudioMapIter iter = iam.find(inAudIndex);
+        if (iter == iam.end())
+        {
+            String errMsg = "Unable to remove element from incoming audio ";
+            errMsg += "because could not find associated index.";
+            AUDIO_LOG(error, errMsg);
+            return;
+        }
+
+        delete iter->second;
+        iam.erase(iter);
+    }
+
+    //now send the received sound (contained in data) to all listeners
+    {
+        AUDIO_LOG(info,"Received audio and sending it to listeners.");
+        Mutex::scoped_lock lock(listenerMutex);
+        for (ListenerMapIter iter = soundListeners.begin();
+             iter != soundListeners.end(); ++iter)
+        {
+            iter->second->sendSound(data);
+        }
+    }
+}
+    
+
+
+void Audio::handleListenerStream(
+    int err, ODPSST::Stream::Ptr strm, Liveness::Token lt)
+{
+    Liveness::Lock locked (lt);
+    if (!locked)
+        return;  //Audio module deleted
+
+    
+    //add the object to listeners
+    
+    ObjectReference id = strm->remoteEndPoint().endPoint.object();
+    AUDIO_LOG(error, "Received listener connection for " << id);
+
+    SoundListener* sndList= new SoundListener(id,strm);
+    Mutex::scoped_lock lock(listenerMutex);
+    soundListeners[id] = sndList;
+}
 
 void Audio::sessionClosed(ObjectSession *session)
 {
-    const ObjectReference& objId = session->id();
-
+    ODPSST::Stream::Ptr strm = session->getStream();
+    if (strm)
     {
-        Mutex::scoped_lock lock(makerMutex);
-        if (soundMakers.find(objId) != soundMakers.end())
-        {
-            SoundMaker* sm = soundMakers[objId];
-            delete sm;
-            soundMakers.erase(objId);
-        }
+        strm->unlistenSubstream(AUDIO_LISTENER_PORT);
+        strm->unlistenSubstream(AUDIO_MAKER_PORT);
     }
-
+    
+    const ObjectReference& objId = session->id();
     {
         Mutex::scoped_lock lock(listenerMutex);
         if (soundListeners.find(objId) != soundListeners.end())

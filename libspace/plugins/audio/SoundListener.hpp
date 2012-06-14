@@ -5,27 +5,28 @@
 #include <sirikata/core/util/ObjectReference.hpp>
 #include <boost/thread/mutex.hpp>
 #include <sirikata/core/odp/DelegateService.hpp>
+#include <sirikata/core/util/Liveness.hpp>
+#include <sirikata/core/network/RecordSSTStream.hpp>
+#include <sirikata/space/ObjectSessionManager.hpp>
 
 namespace Sirikata
 {
 
 
-class SoundListener
+class SoundListener : public Liveness
 {
 public:
-    SoundListener(const ObjectReference& oref, ODP::Port* p);
+    SoundListener(const ObjectReference& oref, ODPSST::Stream::Ptr strm);
     ~SoundListener();
+    void handleMessage(MemoryReference data, Liveness::Token lt);
+    void sendSound(const MemoryReference& toSend);
     
-    //no idea what the internal data should actually look like
-//    typedef std::vector<SomeData> SoundSamples;
-//    void pushSamples(SoundSamples& newSamples);
     
 private:
-    typedef boost::mutex Mutex;
-    Mutex sampleMutex;
     ObjectReference objId;
-    ODP::Port* port;
-//    SoundSamples mSamples;
+    RecordSSTStream<ODPSST::Stream::Ptr> record_stream;
+    ODPSST::Stream::Ptr stream;
+    
 };
 
 
