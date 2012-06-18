@@ -47,6 +47,9 @@
 
 #include <sirikata/core/command/Commander.hpp>
 
+#include <sirikata/core/transfer/TransferPool.hpp>
+#include <sirikata/core/transfer/TransferMediator.hpp>
+
 namespace Sirikata {
 class ProxyManager;
 class PluginManager;
@@ -56,9 +59,6 @@ class ObjectScriptManager;
 
 class ServerIDMap;
 
-namespace Task {
-class WorkQueue;
-}
 class HostedObject;
 typedef std::tr1::weak_ptr<HostedObject> HostedObjectWPtr;
 typedef std::tr1::shared_ptr<HostedObject> HostedObjectPtr;
@@ -101,6 +101,9 @@ class SIRIKATA_OH_EXPORT ObjectHost
     typedef std::tr1::unordered_map<String, ObjectScriptManager*> ScriptManagerMap;
     ScriptManagerMap mScriptManagers;
 
+    std::tr1::shared_ptr<Transfer::TransferPool> mTransferPool;
+    Transfer::TransferMediator *mTransferMediator;
+
     std::tr1::unordered_map<String,OptionSet*> mSpaceConnectionProtocolOptions;
     ///options passed to initialization of scripts (usually path information)
     std::map<std::string, std::string > mSimOptions;
@@ -138,6 +141,8 @@ public:
     ObjectHost(ObjectHostContext* ctx, Network::IOService*ioServ, const String&options);
     /// The ObjectHost must be destroyed after all HostedObject instances.
     ~ObjectHost();
+
+    ObjectHostContext* context() const { return mContext; }
 
     /** Create an object with the specified script. This version allows you to
      *  specify the unique identifier manually, so it should only be used if you
@@ -177,6 +182,8 @@ public:
     void setQueryProcessor(OH::ObjectQueryProcessor* proc) { mQueryProcessor = proc; }
     OH::ObjectQueryProcessor* getQueryProcessor() { return mQueryProcessor; }
 
+    std::tr1::shared_ptr<Transfer::TransferPool> getTransferPool() { return mTransferPool; }
+
     // Primary HostedObject API
 
     /** Connect the object to the space with the given starting parameters.
@@ -192,6 +199,7 @@ public:
         const String& mesh,
         const String& physics,
         const String& query,
+        const String& zernike,
         ConnectedCallback connected_cb,
         MigratedCallback migrated_cb, StreamCreatedCallback stream_created_cb,
         DisconnectedCallback disconnected_cb

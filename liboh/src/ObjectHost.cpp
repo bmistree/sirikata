@@ -37,7 +37,6 @@
 #include <boost/thread.hpp>
 #include <sirikata/core/util/AtomicTypes.hpp>
 #include <sirikata/core/util/PluginManager.hpp>
-#include <sirikata/core/task/WorkQueue.hpp>
 #include <sirikata/oh/ObjectScriptManager.hpp>
 #include <sirikata/oh/ObjectScript.hpp>
 #include <sirikata/oh/ObjectScriptManagerFactory.hpp>
@@ -49,6 +48,9 @@
 #include <sirikata/oh/ObjectQueryProcessor.hpp>
 
 #include <sirikata/core/network/IOStrandImpl.hpp>
+
+// Transfer mediator added to download objects' Zernike descriptors
+#include <sirikata/core/transfer/AggregatedTransferPool.hpp>
 
 #define OH_LOG(lvl,msg) SILOG(oh,lvl,msg)
 
@@ -114,6 +116,9 @@ ObjectHost::ObjectHost(ObjectHostContext* ctx, Network::IOService *ioServ, const
         );
 
     }
+
+    mTransferMediator = &(Transfer::TransferMediator::getSingleton());
+    mTransferPool = mTransferMediator->registerClient<Transfer::AggregatedTransferPool>("ObjectHost");
 }
 
 ObjectHost::~ObjectHost()
@@ -226,6 +231,7 @@ bool ObjectHost::connect(
     const String& mesh,
     const String& phy,
     const String& query,
+    const String& zernike,
     ConnectedCallback connected_cb,
     MigratedCallback migrated_cb,
     StreamCreatedCallback stream_created_cb,
@@ -239,7 +245,7 @@ bool ObjectHost::connect(
 
     String filtered_query = mQueryProcessor->connectRequest(ho, sporef, query);
     return sm->connect(
-        sporef, loc, orient, bnds, mesh, phy, filtered_query,
+        sporef, loc, orient, bnds, mesh, phy, filtered_query, zernike,
         std::tr1::bind(&ObjectHost::wrappedConnectedCallback, this, HostedObjectWPtr(ho), _1, _2, _3, connected_cb),
         migrated_cb,
         std::tr1::bind(&ObjectHost::wrappedStreamCreatedCallback, this, HostedObjectWPtr(ho), _1, _2, stream_created_cb),
@@ -351,7 +357,10 @@ void ObjectHost::unregisterHostedObject(const SpaceObjectReference& sporef_uuid,
     HostedObjectMap::iterator iter = mHostedObjects.find(sporef_uuid);
     if (iter != mHostedObjects.end()) {
         HostedObjectPtr obj (iter->second);
-        if (obj.get()==key_obj)
+        // The NULL case covers the possibility that the connection finishes
+        // after the HostedObject requests destruction and stops paying
+        // attention to connection events
+        if (key_obj == NULL || obj.get()==key_obj)
             mHostedObjects.erase(iter);
         else
             SILOG(oh,error,"Two objects having the same internal name in the mHostedObjects map on disconnect "<<sporef_uuid.toString());

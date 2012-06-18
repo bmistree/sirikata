@@ -420,7 +420,7 @@ void SessionManager::poll() {
 bool SessionManager::connect(
     const SpaceObjectReference& sporef_objid,
     const TimedMotionVector3f& init_loc, const TimedMotionQuaternion& init_orient, const BoundingSphere3f& init_bounds,
-    const String& init_mesh, const String& init_phy, const String& init_query,
+    const String& init_mesh, const String& init_phy, const String& init_query, const String& init_zernike,
     ConnectedCallback connect_cb, MigratedCallback migrate_cb,
     StreamCreatedCallback stream_created_cb, DisconnectedCallback disconn_cb
 )
@@ -447,6 +447,7 @@ bool SessionManager::connect(
     ci.query = init_query;
     ci.mesh = init_mesh;
     ci.physics = init_phy;
+    ci.zernike = init_zernike;
 
 
     // connect_cb gets wrapped so we can start some automatic steps (initial
@@ -575,6 +576,9 @@ void SessionManager::openConnectionStartSession(const SpaceObjectReference& spor
 
     if (ci.query.size() > 0)
         connect_msg.set_query_parameters( ci.query );
+
+    if (ci.zernike.size() > 0)
+      connect_msg.set_zernike( ci.zernike );
 
     if (!send(sporef_uuid, OBJECT_PORT_SESSION,
               UUID::null(), OBJECT_PORT_SESSION,
@@ -798,40 +802,90 @@ void SessionManager::getAnySpaceConnection(SpaceNodeConnection::GotSpaceConnecti
     }
 
     // Otherwise, initiate one at random
-    ServerID server_id = (ServerID)1; // FIXME should be selected at random somehow, and shouldn't already be in the connection map
-    getSpaceConnection(server_id, cb);
+    // Lookup the server's address
+    mServerIDMap->lookupRandomExternal(
+        mContext->mainStrand->wrap(
+            std::tr1::bind(&SessionManager::setupRandomSpaceConnection, this,
+                _1, _2, cb
+            )
+        )
+    );
+}
+
+void SessionManager::setupRandomSpaceConnection(ServerID resolved_server, Address4 addr, SpaceNodeConnection::GotSpaceConnectionCallback cb) {
+    Sirikata::SerializationCheck::Scoped sc(&mSerialization);
+
+    // If we one at random, by the time we get back we might have a
+    // connection to it or be setting one up.
+    if (getExistingSpaceConnection(resolved_server, cb))
+        return;
+
+    // Otherwise, start it up ourselves. Since we've already resolved,
+    // we just need to create the SpaceNodeConnection and trigger the
+    // connection
+    registerSpaceNodeConnection(resolved_server, cb);
+    finishSetupSpaceConnection(resolved_server, resolved_server, addr);
 }
 
 void SessionManager::getSpaceConnection(ServerID sid, SpaceNodeConnection::GotSpaceConnectionCallback cb) {
     Sirikata::SerializationCheck::Scoped sc(&mSerialization);
 
+    if (getExistingSpaceConnection(sid, cb))
+        return;
+
+    // Otherwise start it up
+    setupSpaceConnection(sid, cb);
+}
+
+bool SessionManager::getExistingSpaceConnection(ServerID sid, SpaceNodeConnection::GotSpaceConnectionCallback cb) {
+    Sirikata::SerializationCheck::Scoped sc(&mSerialization);
+
     if (mShuttingDown) {
         cb(NULL);
-        return;
+        return true;
     }
 
     // Check if we have the connection already
     ServerConnectionMap::iterator it = mConnections.find(sid);
     if (it != mConnections.end()) {
-        cb(it->second);
-        return;
+        // The connection can be in mConnections but still be in the progress of
+        // connecting.
+        if (!it->second->connecting())
+            cb(it->second);
+        else
+            it->second->addCallback(cb);
+        return true;
     }
 
     // Or if we are already working on getting one
     ServerConnectionMap::iterator connecting_it = mConnectingConnections.find(sid);
     if (connecting_it != mConnectingConnections.end()) {
         connecting_it->second->addCallback(cb);
-        return;
+        return true;
     }
 
-    // Otherwise start it up
-    setupSpaceConnection(sid, cb);
+    return false;
 }
 
 void SessionManager::setupSpaceConnection(ServerID server, SpaceNodeConnection::GotSpaceConnectionCallback cb) {
+    registerSpaceNodeConnection(server, cb);
+
+    // Lookup the server's address
+    mServerIDMap->lookupExternal(
+        server,
+        mContext->mainStrand->wrap(
+            std::tr1::bind(&SessionManager::finishSetupSpaceConnection, this,
+                server, _1, _2
+            )
+        )
+    );
+}
+
+void SessionManager::registerSpaceNodeConnection(ServerID server, SpaceNodeConnection::GotSpaceConnectionCallback cb) {
     Sirikata::SerializationCheck::Scoped sc(&mSerialization);
 
     using std::tr1::placeholders::_1;
+    using std::tr1::placeholders::_2;
 
     // Mark us as looking this up, store our callback
     assert(mConnectingConnections.find(server) == mConnectingConnections.end());
@@ -854,19 +908,9 @@ void SessionManager::setupSpaceConnection(ServerID server, SpaceNodeConnection::
     conn->addCallback(std::tr1::bind(&SessionManager::handleSpaceSession, this, server, _1));
     conn->addCallback(cb);
     mConnectingConnections[server] = conn;
-
-    // Lookup the server's address
-    mServerIDMap->lookupExternal(
-        server,
-        mContext->mainStrand->wrap(
-            std::tr1::bind(&SessionManager::finishSetupSpaceConnection, this,
-                server, _1
-            )
-        )
-    );
 }
 
-void SessionManager::finishSetupSpaceConnection(ServerID server, Address4 addr) {
+void SessionManager::finishSetupSpaceConnection(ServerID server, ServerID resolved_server, Address4 addr) {
     Sirikata::SerializationCheck::Scoped sc(&mSerialization);
 
     using std::tr1::placeholders::_1;
@@ -1125,8 +1169,8 @@ void SessionManager::handleSessionMessageConnectResponseSuccess(ServerID from_se
             phy = conn_resp.physics();
         // If we've got proper time syncing setup, we can dispatch the callback
         // immediately.  Otherwise, we need to delay the callback
-        assert(mTimeSyncClient != NULL);
-        bool time_synced = mTimeSyncClient->valid();
+
+        bool time_synced = mTimeSyncClient != NULL && mTimeSyncClient->valid();
 
         ServerID connected_to = mObjectConnections.handleConnectSuccess(sporef_obj, loc, orient, bnds, mesh, phy, time_synced);
 
@@ -1297,8 +1341,7 @@ void SessionManager::spaceConnectCallback(int err, SSTStreamPtr s, SpaceObjectRe
     mObjectToSpaceStreams[spaceobj.object()] = s;
 
 
-    assert(mTimeSyncClient != NULL);
-    bool time_synced = mTimeSyncClient->valid();
+    bool time_synced = mTimeSyncClient != NULL && mTimeSyncClient->valid();
     mObjectConnections.handleConnectStream(spaceobj, after, time_synced);
 }
 

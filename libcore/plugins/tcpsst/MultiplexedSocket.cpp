@@ -241,7 +241,13 @@ MultiplexedSocket::SocketConnectionPhase MultiplexedSocket::addCallbacks(const S
     return mSocketConnectionPhase;
 }
 
-
+Stream::StreamID MultiplexedSocket::getFirstStreamID(bool connector) { 
+    if (connector) {
+        return TCPStream::sFragmentPackets?16383:1;
+    }else {
+        return TCPStream::sFragmentPackets?16382:0;
+    }
+}
 Stream::StreamID MultiplexedSocket::getNewID() {
     if (!mFreeStreamIDs.probablyEmpty()) {
         Stream::StreamID retval;
@@ -250,24 +256,28 @@ Stream::StreamID MultiplexedSocket::getNewID() {
     }
     unsigned int retval=mHighestStreamID+=2;
     assert(retval>1);
+    if (retval > 127) {
+//        SILOG(tcpsst, error,"Stream ids larger than 127 may be fragmented by certain browsers. See FIXME in ASIOReadBuffer::processPartialChunk.");
+        //fixed this bug
+    }
     return Stream::StreamID(retval);
 }
-MultiplexedSocket::MultiplexedSocket(IOStrand*io, const Stream::SubstreamCallback&substreamCallback, bool zeroDelim)
+MultiplexedSocket::MultiplexedSocket(IOStrand*io, const Stream::SubstreamCallback&substreamCallback, TCPStream::StreamType streamType)
  : SerializationCheck(),
    mIO(io),
    mNewSubstreamCallback(substreamCallback),
-   mHighestStreamID(1)
+  mHighestStreamID(getFirstStreamID(true).read())
 {
-    mZeroDelim=zeroDelim;
+    mStreamType = streamType;
     mNewRequests=NULL;
     mSocketConnectionPhase=PRECONNECTION;
 }
-MultiplexedSocket::MultiplexedSocket(IOStrand*io,const UUID&uuid,const Stream::SubstreamCallback &substreamCallback, bool zeroDelimited)
+MultiplexedSocket::MultiplexedSocket(IOStrand*io,const UUID&uuid,const Stream::SubstreamCallback &substreamCallback, TCPStream::StreamType streamType)
  :SerializationCheck(),
   mIO(io),
      mNewSubstreamCallback(substreamCallback),
-     mHighestStreamID(0) {
-    mZeroDelim=zeroDelimited;
+    mHighestStreamID(getFirstStreamID(false).read()) {
+    mStreamType = streamType;
     mNewRequests=NULL;
     mSocketConnectionPhase=PRECONNECTION;
 }
@@ -278,7 +288,7 @@ void MultiplexedSocket::initFromSockets(const std::vector<TCPSocket*>&sockets, s
         mSockets.back().bindFunctions(getSharedPtr());
     }
 }
-void MultiplexedSocket::sendAllProtocolHeaders(const MultiplexedSocketPtr& thus, const std::string&origin, const std::string&host, const std::string&port, const std::string&resource_name, const std::string&subprotocol, const std::map<TCPSocket*,std::string>& responses){
+void MultiplexedSocket::sendAllProtocolHeaders(const MultiplexedSocketPtr& thus, const std::string&origin, const std::string&host, const std::string&port, const std::string&resource_name, const std::string&subprotocol, const std::map<TCPSocket*,std::string>& responses, TCPStream::StreamType streamType){
     unsigned int numSockets=(unsigned int)thus->mSockets.size();
     for (std::vector<ASIOSocketWrapper>::iterator i=thus->mSockets.begin(),ie=thus->mSockets.end();i!=ie;++i) {
         i->sendServerProtocolHeader(thus,origin,host,port,resource_name,subprotocol,responses.find(&(i->getSocket()))->second);
@@ -286,7 +296,7 @@ void MultiplexedSocket::sendAllProtocolHeaders(const MultiplexedSocketPtr& thus,
     boost::lock_guard<boost::mutex> connectingMutex(sConnectingMutex);
     thus->mSocketConnectionPhase=CONNECTED;
     for (unsigned int i=0,ie=thus->mSockets.size();i!=ie;++i) {
-        MakeASIOReadBuffer(thus,i,MemoryReference(NULL,0));
+        MakeASIOReadBuffer(thus,i,MemoryReference(NULL,0), (TCPStream::StreamType)streamType);
     }
     assert (thus->mNewRequests==NULL||thus->mNewRequests->probablyEmpty());//would otherwise need to empty out new requests--but no one should have a reference to us here
 }
@@ -414,6 +424,13 @@ void MultiplexedSocket::receiveFullChunk(unsigned int whichSocket, Stream::Strea
         }
     }
 }
+void MultiplexedSocket::receivePing(unsigned int whichSocket, MemoryReference data, bool isPong) {
+    if (!isPong) {
+        Chunk *toSend = ASIOSocketWrapper::constructPing(getSharedPtr(), data, true);
+        mSockets[whichSocket].rawSend(getSharedPtr(), toSend, true);
+    }
+}
+
 void MultiplexedSocket::connectionFailureOrSuccessCallback(SocketConnectionPhase status, Stream::ConnectionStatus reportedProblem, const std::string&errorMessage) {
     Stream::ConnectionStatus stat=reportedProblem;
     std::deque<StreamIDCallbackPair> registrations;

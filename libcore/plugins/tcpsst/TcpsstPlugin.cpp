@@ -48,7 +48,9 @@ static OptionSet*optionParser(const String&str) {
     OptionValue *kSendBufferSize=new OptionValue("ksend-buffer-size","0",OptionValueType<unsigned int>(),"Size of kernel TCP send buffer used to accumulate packets during an outgoing send. 0 for system default buffer.");
     OptionValue *kReceiveBufferSize=new OptionValue("kreceive-buffer-size","0",OptionValueType<unsigned int>(),"Size of kernel TCP receive buffer used to accumulate packets during an outgoing send. 0 for system default buffer.");
     OptionValue *noDelay=new OptionValue("no-delay","false",OptionValueType<bool>(),"Whether the no-delay option is set on the socket");
-    OptionValue *zeroDelim=new OptionValue("base64","false",OptionValueType<bool>(),"Whether the stream should be base64 and zero delimited (eg websocket compat)");
+    OptionValue *zeroDelim=new OptionValue("base64","false",OptionValueType<bool>(),"True if the stream should be base64 (eg javascript compat)");
+    OptionValue *oldWebsocket=new OptionValue("websocket-draft-76","false",OptionValueType<bool>(),"True if the stream should be websocket draft-76. False for RFC 6455");
+    OptionValue *testFragmentPackets=new OptionValue("test-fragment-packet-level","-1",OptionValueType<int>(),"1 if packets should be fragmented at regular intervals in order to test the browser fragmentation. 2 if packets should be aggressively fragmented. 0 to explicitly disable fragmentation of packets. Option affects option globally for the duration of the run.");
 
     InitializeClassOptions("tcpsstoptions",numSockets,
                      numSockets,
@@ -56,8 +58,10 @@ static OptionSet*optionParser(const String&str) {
                      sendBufferSize,
                      noDelay,
                      zeroDelim,
+                     oldWebsocket,
                      kSendBufferSize,
                      kReceiveBufferSize,
+                     testFragmentPackets,
                      NULL);
     OptionSet*retval=OptionSet::getOptions("tcpsstoptions",numSockets);
     retval->parse(str);

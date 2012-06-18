@@ -64,6 +64,11 @@
 #include <boost/asio.hpp> //htons, ntohs
 
 
+#include <sirikata/core/transfer/TransferData.hpp>
+#include <sirikata/core/transfer/RemoteFileMetadata.hpp>
+#include <sirikata/core/transfer/TransferPool.hpp>
+#include <sirikata/core/transfer/TransferMediator.hpp>
+
 namespace Sirikata {
 
 class LocUpdate;
@@ -89,12 +94,29 @@ class PerPresenceData;
 typedef std::tr1::weak_ptr<HostedObject> HostedObjectWPtr;
 typedef std::tr1::shared_ptr<HostedObject> HostedObjectPtr;
 
+
 class SIRIKATA_OH_EXPORT HostedObject
     : public VWObject,
       public Service
 {
-  private:
+private:
   struct PrivateCallbacks;
+
+    typedef struct OHConnectInfo{
+    public:
+      SpaceID spaceID;
+      Location startingLocation;
+      BoundingSphere3f meshBounds;
+      String mesh;
+      String physics;
+      String query;
+      ObjectReference orefID;
+      int64 token;
+      String zernike;
+      } OHConnectInfo;
+    typedef std::tr1::shared_ptr<OHConnectInfo> OHConnectInfoPtr;
+
+protected:
 
     ObjectHostContext* mContext;
     const UUID mID;
@@ -215,6 +237,35 @@ public:
         const ObjectReference& orefID = ObjectReference::null(),
         PresenceToken token = DEFAULT_PRESENCE_TOKEN);
 
+
+    void objectHostConnectIndirect(OHConnectInfoPtr oci) {
+      bool ret = objectHostConnect(oci->spaceID, oci->startingLocation, oci->meshBounds,
+                                   oci->mesh, oci->physics, oci->query, oci->zernike,
+                                   oci->orefID, oci->token);
+    }
+
+
+
+    bool objectHostConnect(
+        const SpaceID spaceID,
+        const Location startingLocation,
+        const BoundingSphere3f meshBounds,
+        const String mesh,
+        const String physics,
+        const String query,
+        const String zernike,
+        const ObjectReference orefID,
+        PresenceToken token = DEFAULT_PRESENCE_TOKEN);
+
+    bool downloadZernikeDescriptor(OHConnectInfoPtr ocip, uint8 n_retry=0);
+
+    void metadataDownloaded(
+        OHConnectInfoPtr ocip,
+        uint8 retryCount,
+        std::tr1::shared_ptr<Transfer::MetadataRequest> request,
+        std::tr1::shared_ptr<Transfer::RemoteFileMetadata> response);
+
+
     /// Disconnects from the given space by terminating the corresponding substream.
     void disconnectFromSpace(const SpaceID &spaceID, const ObjectReference& oref);
 
@@ -292,13 +343,19 @@ public:
         const HostedObjectWPtr& weakSelf, const SpaceObjectReference& spaceobj,
         Disconnect::Code cc);
 
-    static void handleConnected(const HostedObjectWPtr &weakSelf, const SpaceID& space, const ObjectReference& obj, ObjectHost::ConnectionInfo info);
-    static void handleConnectedIndirect(const HostedObjectWPtr &weakSelf, const SpaceID& space, const ObjectReference& obj, ObjectHost::ConnectionInfo info, const BaseDatagramLayerPtr&);
+    static void handleConnected(const HostedObjectWPtr &weakSelf, ObjectHost* parentOH, const SpaceID& space, const ObjectReference& obj, ObjectHost::ConnectionInfo info);
+    static void handleConnectedIndirect(const HostedObjectWPtr &weakSelf, ObjectHost* parentOH, const SpaceID& space, const ObjectReference& obj, ObjectHost::ConnectionInfo info, const BaseDatagramLayerPtr&);
 
 //    static bool handleEntityCreateMessage(const HostedObjectWPtr &weakSelf, const ODP::Endpoint& src, const ODP::Endpoint& dst, MemoryReference bodyData);
     static void handleMigrated(const HostedObjectWPtr &weakSelf, const SpaceID& space, const ObjectReference& obj, ServerID server);
     static void handleStreamCreated(const HostedObjectWPtr &weakSelf, const SpaceObjectReference& spaceobj, SessionManager::ConnectionEvent after, PresenceToken token);
     static void handleDisconnected(const HostedObjectWPtr &weakSelf, const SpaceObjectReference& spaceobj, Disconnect::Code cc);
+
+    // Helper that disconnects presences that were completed after the
+    // HostedObject was stopped/destroyed. Only invoke indirectly (via posting)
+    // since we don't want to muck with the connection within the connection
+    // callback.
+    static void disconnectDeadPresence(ObjectHost* parentOH, const SpaceID& space, const ObjectReference& obj);
 
     ODP::DelegatePort* createDelegateODPPort(ODP::DelegateService* parentService, const SpaceObjectReference& spaceobj, ODP::PortID port);
     bool delegateODPPortSend(const ODP::Endpoint& source_ep, const ODP::Endpoint& dest_ep, MemoryReference payload);

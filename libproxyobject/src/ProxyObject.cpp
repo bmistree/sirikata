@@ -57,13 +57,13 @@ ProxyObject::ProxyObject(ProxyManagerPtr man, const SpaceObjectReference& id)
  :   SelfWeakPtr<ProxyObject>(),
      ProxyObjectProvider(),
      MeshProvider (),
+     mValid(true),
      mID(id),
-     mParent(man),
-     mValid(true)
-{  
+     mParent(man)
+{
     assert(mParent);
 
-    reset();        
+    reset();
     // Validate is forced in ProxyObject::construct
 }
 
@@ -73,7 +73,7 @@ ProxyObject::~ProxyObject() {
 }
 
 void ProxyObject::reset() {
-    SequencedPresenceProperties::reset();    
+    SequencedPresenceProperties::reset();
 }
 
 void ProxyObject::validate() {
@@ -178,6 +178,10 @@ bool ProxyObject::isAggregate() const {
     return req->isAggregate();
 }
 
+ObjectReference ProxyObject::parentAggregate() const {
+    PROXY_SERIALIZED();
+    return SequencedPresenceProperties::parent();
+}
 
 TimedMotionVector3f ProxyObject::verifiedLocation() const {
     PROXY_SERIALIZED();

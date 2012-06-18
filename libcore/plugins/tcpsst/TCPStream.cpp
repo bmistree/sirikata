@@ -44,7 +44,7 @@
 #include "VariableLength.hpp"
 #include <boost/thread.hpp>
 namespace Sirikata { namespace Network {
-
+int TCPStream::sFragmentPackets=0;
 using namespace boost::asio::ip;
 TCPStream::TCPStream(const MultiplexedSocketPtr&shared_socket,const Stream::StreamID&sid):mSocket(shared_socket),mID(sid),mSendStatus(new AtomicValue<int>(0)) {
     mNumSimultaneousSockets=shared_socket->numSockets();
@@ -59,7 +59,7 @@ TCPStream::TCPStream(const MultiplexedSocketPtr&shared_socket,const Stream::Stre
     boost::asio::ip::tcp::no_delay optionND;
     shared_socket->getASIOSocketWrapper(0).getSocket().get_option(optionND);
     mNoDelay=optionND.value();
-    mZeroDelim=shared_socket->isZeroDelim();
+    mStreamType=shared_socket->getStreamType();
 }
 
 Duration TCPStream::averageSendLatency() const {
@@ -143,7 +143,8 @@ bool TCPStream::send(MemoryReference firstChunk, MemoryReference secondChunk, St
     }
     toBeSent.originStream=getID();
     ///this function should never return something larger than the  MAX_SERIALIZED_LEGNTH
-    if (mZeroDelim) {
+    switch (mStreamType) {
+      case BASE64_ZERODELIM: {
         uint8 serializedStreamId[StreamID::MAX_HEX_SERIALIZED_LENGTH];
         unsigned int streamIdLength=StreamID::MAX_HEX_SERIALIZED_LENGTH;
         unsigned int successLengthNeeded=toBeSent.originStream.serializeToHex(serializedStreamId,streamIdLength);
@@ -155,7 +156,115 @@ bool TCPStream::send(MemoryReference firstChunk, MemoryReference secondChunk, St
                                                              secondChunk,
                                                              MemoryReference(NULL,0),
                                                              &streamIdBytes);
-    }else {
+      } break;
+      case RFC_6455: if (sFragmentPackets) {///this is just testing code to fragment send packets
+        uint8 serializedStreamId[StreamID::MAX_SERIALIZED_LENGTH];
+        unsigned int streamIdLength=StreamID::MAX_SERIALIZED_LENGTH;
+        unsigned int successLengthNeeded=toBeSent.originStream.serialize(serializedStreamId,streamIdLength);
+        assert(successLengthNeeded<=streamIdLength);
+        streamIdLength=successLengthNeeded;
+        size_t totalSize=firstChunk.size()+secondChunk.size();
+        totalSize+=streamIdLength;
+        size_t numFragments= sFragmentPackets==2?totalSize/*send 1 long items*/:7;
+        if (numFragments>totalSize)
+            numFragments=totalSize;
+        //allocate a packet long enough to take both the length of the packet and the stream id as well as the packet data. totalSize = size of streamID + size of data and
+        //packetHeaderLength = the length of the length component of the packet
+        toBeSent.data=new Chunk(0);
+        std::vector<uint8> consolidatedBuffer(totalSize);
+        std::copy(serializedStreamId,serializedStreamId+streamIdLength,consolidatedBuffer.begin());
+        std::copy((const uint8*)firstChunk.begin(),(const uint8*)firstChunk.end(),consolidatedBuffer.begin()+streamIdLength);
+        std::copy((const uint8*)secondChunk.begin(),(const uint8*)secondChunk.end(),consolidatedBuffer.begin()+streamIdLength+firstChunk.size());
+        
+        size_t offset=0;
+        size_t bytes_copied=0;
+        for (size_t frag=0;frag<numFragments;++frag) {
+            size_t frag_size = totalSize/numFragments;
+            uint8 packetHeader[12];
+            unsigned int packetHeaderLength = 2;
+            packetHeader[0] = (frag==0?0x02:0x0) ; // Flags = FIN/Unfragmented, Opcode = 2: binary data
+            if (frag+1==numFragments) {
+                packetHeader[0]|=0x80;
+                frag_size = totalSize-(totalSize/numFragments)*(numFragments-1);//the remainder        
+            }
+            if (frag_size <= 125) {
+                packetHeader[1] = frag_size;
+            } else if (frag_size <= 65535) {
+                packetHeader[1] = 126;
+                packetHeader[2] = (frag_size >> 8);
+                packetHeader[3] = (frag_size & 0xff);
+                packetHeaderLength += 2;
+            } else {
+                // why do they jump from 16-bit to 64-bit
+                packetHeader[1] = 127;
+                packetHeader[2] = 0;
+                packetHeader[3] = 0;
+                packetHeader[4] = 0;
+                packetHeader[5] = 0;
+                packetHeader[6] = (frag_size >> 24);
+                packetHeader[7] = ((frag_size >> 16) & 0xff);
+                packetHeader[8] = ((frag_size >> 8) & 0xff);
+                packetHeader[9] = (frag_size & 0xff);
+                packetHeaderLength += 8;
+            }
+            toBeSent.data->resize(offset+frag_size+packetHeaderLength);
+            uint8 *outputBuffer=&(*toBeSent.data)[offset];
+            std::copy(packetHeader,packetHeader+packetHeaderLength,toBeSent.data->begin()+offset);
+            std::copy(consolidatedBuffer.begin()+bytes_copied,consolidatedBuffer.begin()+bytes_copied+frag_size,toBeSent.data->begin()+offset+packetHeaderLength);
+            bytes_copied+=frag_size;
+            offset=toBeSent.data->size();
+        }
+        } else {
+        uint8 serializedStreamId[StreamID::MAX_SERIALIZED_LENGTH];
+        unsigned int streamIdLength=StreamID::MAX_SERIALIZED_LENGTH;
+        unsigned int successLengthNeeded=toBeSent.originStream.serialize(serializedStreamId,streamIdLength);
+        assert(successLengthNeeded<=streamIdLength);
+        streamIdLength=successLengthNeeded;
+        size_t totalSize=firstChunk.size()+secondChunk.size();
+        totalSize+=streamIdLength;
+        uint8 packetHeader[12];
+        unsigned int packetHeaderLength = 2;
+        packetHeader[0] = 0x80 | 0x02 ; // Flags = FIN/Unfragmented, Opcode = 2: binary data
+        if (totalSize <= 125) {
+          packetHeader[1] = totalSize;
+        } else if (totalSize <= 65535) {
+          packetHeader[1] = 126;
+          packetHeader[2] = (totalSize >> 8);
+          packetHeader[3] = (totalSize & 0xff);
+          packetHeaderLength += 2;
+        } else {
+          // why do they jump from 16-bit to 64-bit
+          packetHeader[1] = 127;
+          packetHeader[2] = 0;
+          packetHeader[3] = 0;
+          packetHeader[4] = 0;
+          packetHeader[5] = 0;
+          packetHeader[6] = (totalSize >> 24);
+          packetHeader[7] = ((totalSize >> 16) & 0xff);
+          packetHeader[8] = ((totalSize >> 8) & 0xff);
+          packetHeader[9] = (totalSize & 0xff);
+          packetHeaderLength += 8;
+        }
+        //allocate a packet long enough to take both the length of the packet and the stream id as well as the packet data. totalSize = size of streamID + size of data and
+        //packetHeaderLength = the length of the length component of the packet
+        toBeSent.data=new Chunk(totalSize+packetHeaderLength);
+
+        uint8 *outputBuffer=&(*toBeSent.data)[0];
+        std::memcpy(outputBuffer,packetHeader,packetHeaderLength);
+        std::memcpy(outputBuffer+packetHeaderLength,serializedStreamId,streamIdLength);
+        if (firstChunk.size()) {
+            std::memcpy(&outputBuffer[packetHeaderLength+streamIdLength],
+                        firstChunk.data(),
+                        firstChunk.size());
+        }
+        if (secondChunk.size()) {
+            std::memcpy(&outputBuffer[packetHeaderLength+streamIdLength+firstChunk.size()],
+                        secondChunk.data(),
+                        secondChunk.size());
+        }
+      } break;
+      case LENGTH_DELIM:
+      default: {
         uint8 serializedStreamId[StreamID::MAX_SERIALIZED_LENGTH];
         unsigned int streamIdLength=StreamID::MAX_SERIALIZED_LENGTH;
         unsigned int successLengthNeeded=toBeSent.originStream.serialize(serializedStreamId,streamIdLength);
@@ -183,6 +292,7 @@ bool TCPStream::send(MemoryReference firstChunk, MemoryReference secondChunk, St
                         secondChunk.data(),
                         secondChunk.size());
         }
+      } break;
     }
     bool didsend=false;
     //indicate to other would-be TCPStream::close()ers that we are sending and they will have to wait until we give up control to actually ack the close and shut down the stream
@@ -250,7 +360,12 @@ TCPStream::TCPStream(IOStrand* io,OptionSet*options):mSendStatus(new AtomicValue
     OptionValue *kernelSendBufferSize=options->referenceOption("ksend-buffer-size");
     OptionValue *kernelReceiveBufferSize=options->referenceOption("kreceive-buffer-size");
     OptionValue *noDelay=options->referenceOption("no-delay");
-    OptionValue *zeroDelim=options->referenceOption("base64");
+    OptionValue *base64=options->referenceOption("base64");
+    OptionValue *oldLengthDelim=options->referenceOption("websocket-draft-76");
+    OptionValue *fragmentPackets=options->referenceOption("test-fragment-packet-level");
+    if (fragmentPackets->as<int>()!=-1) {
+        sFragmentPackets = fragmentPackets->as<int>();
+    }
     assert(numSimultSockets&&sendBufferSize);
     mNumSimultaneousSockets=(unsigned char)numSimultSockets->as<unsigned int>();
     assert(mNumSimultaneousSockets);
@@ -258,10 +373,10 @@ TCPStream::TCPStream(IOStrand* io,OptionSet*options):mSendStatus(new AtomicValue
     mKernelSendBufferSize=kernelSendBufferSize->as<unsigned int>();
     mKernelReceiveBufferSize=kernelReceiveBufferSize->as<unsigned int>();
     mNoDelay=noDelay->as<bool>();
-    mZeroDelim=zeroDelim->as<bool>();
+    mStreamType=oldLengthDelim->as<bool>() ? TCPStream::LENGTH_DELIM : TCPStream::RFC_6455;
 }
 
-TCPStream::TCPStream(IOStrand* io,unsigned char numSimultSockets,unsigned int sendBufferSize,bool noDelay, bool zeroDelim, unsigned int kernelSendBufferSize,unsigned int kernelReceiveBufferSize):mSendStatus(new AtomicValue<int>(0)) {
+TCPStream::TCPStream(IOStrand* io,unsigned char numSimultSockets,unsigned int sendBufferSize,bool noDelay, StreamType streamType, unsigned int kernelSendBufferSize,unsigned int kernelReceiveBufferSize):mSendStatus(new AtomicValue<int>(0)) {
     mIOStrand = io;
     mNumSimultaneousSockets=(unsigned char)numSimultSockets;
     assert(mNumSimultaneousSockets);
@@ -269,7 +384,7 @@ TCPStream::TCPStream(IOStrand* io,unsigned char numSimultSockets,unsigned int se
     mNoDelay=noDelay;
     mKernelSendBufferSize=kernelSendBufferSize;
     mKernelReceiveBufferSize=kernelReceiveBufferSize;
-    mZeroDelim=zeroDelim;
+    mStreamType = streamType;
 }
 
 void TCPStream::connect(const Address&addy,
@@ -277,10 +392,11 @@ void TCPStream::connect(const Address&addy,
                         const ConnectionCallback &connectionCallback,
                         const ReceivedCallback&bytesReceivedCallback,
                         const ReadySendCallback&readySendCallback) {
-    MultiplexedSocketPtr socket = MultiplexedSocket::construct<MultiplexedSocket>(mIOStrand,substreamCallback,mZeroDelim);
+    MultiplexedSocketPtr socket = MultiplexedSocket::construct<MultiplexedSocket>(
+        mIOStrand,substreamCallback,mStreamType);
     mSocket = socket;
     *mSendStatus=0;
-    mID=StreamID(1);
+    mID=StreamID(MultiplexedSocket::getFirstStreamID(true));
     socket->addCallbacks(getID(),new Callbacks(connectionCallback,
                                                 bytesReceivedCallback,
                                                 readySendCallback,
@@ -289,7 +405,7 @@ void TCPStream::connect(const Address&addy,
 }
 
 Stream*TCPStream::factory(){
-    return new TCPStream(mIOStrand,mNumSimultaneousSockets,mSendBufferSize,mNoDelay,mZeroDelim,mKernelSendBufferSize,mKernelReceiveBufferSize);
+    return new TCPStream(mIOStrand,mNumSimultaneousSockets,mSendBufferSize,mNoDelay,mStreamType,mKernelSendBufferSize,mKernelReceiveBufferSize);
 }
 Stream* TCPStream::clone(const SubstreamCallback &cloneCallback) {
     MultiplexedSocketPtr socket_copy = mSocket;
@@ -297,7 +413,7 @@ Stream* TCPStream::clone(const SubstreamCallback &cloneCallback) {
         return NULL;
     }
 
-    TCPStream *retval=new TCPStream(mIOStrand,mNumSimultaneousSockets,mSendBufferSize,mNoDelay,mZeroDelim, mKernelSendBufferSize,mKernelReceiveBufferSize);
+    TCPStream *retval=new TCPStream(mIOStrand,mNumSimultaneousSockets,mSendBufferSize,mNoDelay,mStreamType, mKernelSendBufferSize,mKernelReceiveBufferSize);
     retval->mSocket = socket_copy;
 
     StreamID newID = socket_copy->getNewID();
@@ -315,7 +431,7 @@ Stream* TCPStream::clone(const ConnectionCallback &connectionCallback,
         return NULL;
     }
 
-    TCPStream *retval=new TCPStream(mIOStrand,mNumSimultaneousSockets,mSendBufferSize,mNoDelay,mZeroDelim, mKernelSendBufferSize,mKernelReceiveBufferSize);
+    TCPStream *retval=new TCPStream(mIOStrand,mNumSimultaneousSockets,mSendBufferSize,mNoDelay,mStreamType, mKernelSendBufferSize,mKernelReceiveBufferSize);
     retval->mSocket = socket_copy;
 
     StreamID newID = socket_copy->getNewID();

@@ -44,20 +44,18 @@ namespace Sirikata {
  */
 class SIRIKATA_EXPORT ServerIDMap {
 public:
-    typedef std::tr1::function<void(ServerID)> ServerIDLookupCallback;
-    typedef std::tr1::function<void(Address4)> Address4LookupCallback;
+    typedef std::tr1::function<void(ServerID, Address4)> Address4LookupCallback;
 
     ServerIDMap(Context* ctx)
         : mContext(ctx)
     {}
     virtual ~ServerIDMap() {}
 
-   
+
     /** Lookup for internal addresses, i.e. those used for space server
      *  to space server communication. Returns NullServerID or Address4::Null if
      *  the server can't be found.
      */
-    virtual void lookupInternal(const Address4& addr, ServerIDLookupCallback cb) = 0;
     virtual void lookupInternal(const ServerID& sid, Address4LookupCallback cb) = 0;
 
 
@@ -65,8 +63,12 @@ public:
      *  to space server communication. Returns NullServerID or Address4::Null if
      *  the server can't be found.
      */
-    virtual void lookupExternal(const Address4& addr, ServerIDLookupCallback cb) = 0;
     virtual void lookupExternal(const ServerID& sid, Address4LookupCallback cb) = 0;
+
+    /** Lookup a random external addres, e.g. to find any node to bootstrap a
+     *  connection to the space.
+     */
+    virtual void lookupRandomExternal(Address4LookupCallback cb) = 0;
 
   protected:
     Context* mContext;
