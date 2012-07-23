@@ -127,7 +127,7 @@ void Audio::handleNewAudioMsg(MemoryReference data,
 
     //now send the received sound (contained in data) to all listeners
     {
-        AUDIO_LOG(info,"Received audio and sending it to listeners.");
+        AUDIO_LOG(error,"Received audio and sending it to listeners.");
         Mutex::scoped_lock lock(listenerMutex);
         for (ListenerMapIter iter = soundListeners.begin();
              iter != soundListeners.end(); ++iter)
@@ -152,7 +152,7 @@ void Audio::handleListenerStream(
     ObjectReference id = strm->remoteEndPoint().endPoint.object();
     AUDIO_LOG(error, "Received listener connection for " << id);
 
-    SoundListener* sndList= new SoundListener(id,strm);
+    SoundListener* sndList = new SoundListener(id,strm);
     Mutex::scoped_lock lock(listenerMutex);
     soundListeners[id] = sndList;
 }

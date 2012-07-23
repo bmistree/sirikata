@@ -17,6 +17,7 @@
 #include "URLFullSoundLoader.hpp"
 #include "FFmpegAudioStream.hpp"
 #include "SoundSender.hpp"
+#include "SoundListener.hpp"
 
 namespace Sirikata {
 namespace SDL {
@@ -105,6 +106,7 @@ private:
 
     URLFullSoundLoaderManager* mURLFullSoundLoaderManager;
     SoundSender* mSoundSender;
+    SoundListener* mSoundListener;
     HostedObjectPtr mHostedObjectPtr;
     
     /**

@@ -19,7 +19,7 @@ public:
     SoundListener(const ObjectReference& oref, ODPSST::Stream::Ptr strm);
     ~SoundListener();
     void handleMessage(MemoryReference data, Liveness::Token lt);
-    void sendSound(const MemoryReference& toSend);
+    void sendSound(MemoryReference toSend);
     
     
 private:

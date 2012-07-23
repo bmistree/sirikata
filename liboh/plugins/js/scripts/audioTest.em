@@ -1,3 +1,3 @@
 
 system.__debugPrint('\nBeginning sound test\n');
-simulator._audio.playSpaceSound('http://ahoy.stanford.edu/singleladies.mp3', 1.0);
+simulator._audio.playSpaceSound('http://bcoli.stanford.edu/celeste.mp3', 1.0);

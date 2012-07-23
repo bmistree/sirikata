@@ -18,7 +18,7 @@ SoundListener::SoundListener(const ObjectReference& oref, ODPSST::Stream::Ptr st
 }
 
 
-void SoundListener::sendSound(const MemoryReference& toSend)
+void SoundListener::sendSound(MemoryReference toSend)
 {
     SL_LOG(error,"Sound listener received a new sound.  Sending");
     record_stream.write(toSend);

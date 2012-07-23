@@ -46,6 +46,7 @@ AudioSimulation::AudioSimulation(
    mPlaying(false),
    mURLFullSoundLoaderManager(NULL),
    mSoundSender(NULL),
+   mSoundListener(NULL),
    mHostedObjectPtr(hop)
 {
 }
@@ -119,7 +120,8 @@ void AudioSimulation::iStart(Liveness::Token lt)
                     _1, _2, _3,livenessToken())));
 
     mSoundSender = new SoundSender(mSporef,mHostedObjectPtr);
-    //lkjs;
+    mSoundListener = new SoundListener(mSporef,mHostedObjectPtr);
+
 }
 
 
